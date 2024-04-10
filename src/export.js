@@ -63,6 +63,7 @@ function exportDataset(opts) {
     assetStreamHandler = options.assets ? assetHandler.rewriteAssets : assetHandler.stripAssets
   }
 
+  // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve, reject) => {
     miss.finished(archive, async (archiveErr) => {
       if (archiveErr) {

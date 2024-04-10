@@ -1,7 +1,6 @@
-import {afterAll, describe, expect, test} from '@jest/globals'
-
 const os = require('os')
 const path = require('path')
+const {afterAll, describe, expect, test} = require('@jest/globals')
 const miss = require('mississippi')
 const split = require('split2')
 const rimraf = require('../src/util/rimraf')

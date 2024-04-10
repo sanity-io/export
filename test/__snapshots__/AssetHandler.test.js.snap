@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`asset handler can remove asset documents: Nothing removed in assetless doc 1`] = `
-Object {
+{
   "_id": "plain",
   "_type": "bike",
   "name": "Broom",
@@ -9,7 +9,7 @@ Object {
 `;
 
 exports[`asset handler can remove asset documents: doc1 with no image asset 1`] = `
-Object {
+{
   "_id": "doc1",
   "_type": "bike",
   "name": "Scooter",
@@ -17,7 +17,7 @@ Object {
 `;
 
 exports[`asset handler can remove asset documents: doc2 with no image asset 1`] = `
-Object {
+{
   "_id": "doc2",
   "_type": "bike",
   "name": "Dupe",
@@ -25,7 +25,7 @@ Object {
 `;
 
 exports[`asset handler can remove asset documents: doc3 with no image asset 1`] = `
-Object {
+{
   "_id": "doc3",
   "_type": "bike",
   "name": "Tandem",
@@ -33,12 +33,12 @@ Object {
 `;
 
 exports[`asset handler can rewrite documents / queue downloads: Nothing rewritten if pattern doesnt match Sanity asset 1`] = `
-Object {
+{
   "_id": "refsDatMuxAsset",
   "_type": "bike",
-  "video": Object {
+  "video": {
     "_type": "mux.video",
-    "asset": Object {
+    "asset": {
       "_ref": "datMuxAsset",
     },
   },
@@ -46,7 +46,7 @@ Object {
 `;
 
 exports[`asset handler can rewrite documents / queue downloads: Nothing rewritten in assetless doc 1`] = `
-Object {
+{
   "_id": "plain",
   "_type": "bike",
   "name": "Broom",
@@ -54,14 +54,14 @@ Object {
 `;
 
 exports[`asset handler can rewrite documents / queue downloads: Rewritten asset for doc1 1`] = `
-Object {
+{
   "_id": "doc1",
   "_type": "bike",
-  "image": Object {
+  "image": {
     "_sanityAsset": "image@file://./images/6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840.png",
     "_type": "image",
     "caption": "Scooter bike",
-    "nested": Object {
+    "nested": {
       "_sanityAsset": "image@file://./images/6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840.png",
       "_type": "image",
     },
@@ -71,10 +71,10 @@ Object {
 `;
 
 exports[`asset handler can rewrite documents / queue downloads: Rewritten asset for doc2 1`] = `
-Object {
+{
   "_id": "doc2",
   "_type": "bike",
-  "image": Object {
+  "image": {
     "_sanityAsset": "image@file://./images/6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840.png",
     "_type": "image",
   },
@@ -83,10 +83,10 @@ Object {
 `;
 
 exports[`asset handler can rewrite documents / queue downloads: Rewritten asset for doc3 1`] = `
-Object {
+{
   "_id": "doc3",
   "_type": "bike",
-  "image": Object {
+  "image": {
     "_sanityAsset": "image@file://./images/31befc6dfa0315d6c535b8a57e34f86c18eb5f20-310x282.jpg",
     "_type": "image",
   },

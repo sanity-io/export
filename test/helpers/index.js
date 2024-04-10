@@ -1,7 +1,8 @@
-import {jest} from '@jest/globals'
-
 const os = require('os')
 const path = require('path')
+const {
+  jest: {fn: jestFn},
+} = require('@jest/globals')
 const stringToStream = require('string-to-stream')
 const AssetHandler = require('../../src/AssetHandler')
 
@@ -11,7 +12,7 @@ const getMockClient = () => ({
     query.endsWith('._type') ? `sanity.imageAsset` : `http://localhost:32323/${params.id}.jpg`,
 })
 
-const getMockArchive = () => ({append: jest.fn(), abort: jest.fn()})
+const getMockArchive = () => ({append: jestFn(), abort: jestFn()})
 
 const getMockQueue = () => {
   const ops = []

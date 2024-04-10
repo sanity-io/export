@@ -238,8 +238,6 @@ class AssetHandler {
         contentLength &&
           parseInt(contentLength, 10) !== size &&
           `Asset should be ${contentLength} bytes, got ${size}`,
-
-        `Did not succeed after ${attemptNum} attempts.`,
       ]
 
       const detailsString = `Details:\n - ${details.filter(Boolean).join('\n - ')}`
