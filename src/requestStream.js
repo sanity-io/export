@@ -46,7 +46,10 @@ module.exports = async (options) => {
         break
       }
 
-      debug('Error, retrying after 1500ms: %s', err.message)
+      const message =
+        'name' in err && err.name === 'AggregateError' ? err.errors[0].message : err.message
+
+      debug('Error, retrying after 1500ms: %s', message)
       await delay(1500)
     }
   }
