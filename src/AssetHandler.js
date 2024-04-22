@@ -180,6 +180,13 @@ class AssetHandler {
     try {
       stream = await requestStream(options)
     } catch (err) {
+      const message = 'Failed to create asset stream'
+      if (typeof err.message === 'string') {
+        // try to re-assign the error message so the stack trace is more visible
+        err.message = `${message}: ${err.message}`
+        throw err
+      }
+
       throw new Error('Failed create asset stream', {cause: err})
     }
 
@@ -194,7 +201,14 @@ class AssetHandler {
 
         throw new Error(errMsg)
       } catch (err) {
-        throw new Error('Failed to parse error response from asset stream', {cause: err})
+        const message = 'Failed to parse error response from asset stream'
+        if (typeof err.message === 'string') {
+          // try to re-assign the error message so the stack trace is more visible
+          err.message = `${message}: ${err.message}`
+          throw err
+        }
+
+        throw new Error(message, {cause: err})
       }
     }
 
@@ -211,7 +225,14 @@ class AssetHandler {
       md5 = res.md5
       size = res.size
     } catch (err) {
-      throw new Error('Failed to write asset stream to filesystem', {cause: err})
+      const message = 'Failed to write asset stream to filesystem'
+
+      if (typeof err.message === 'string') {
+        err.message = `${message}: ${err.message}`
+        throw err
+      }
+
+      throw new Error(message, {cause: err})
     }
 
     // Verify it against our downloaded stream to make sure we have the same copy
