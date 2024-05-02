@@ -1,0 +1,14 @@
+skip: false
+opts:
+apiMocks:
+  - baseUrl: https://h5hc8cgs.api.sanity.io
+    route: /v1/data/export/production
+    responseCode: 200
+    responseBody: |
+      {}
+
+documentsFile: |
+  [{}]
+
+assetsFile: |
+  {}
