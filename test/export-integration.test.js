@@ -1,3 +1,9 @@
+/*
+This file contains integration tests for the exportDataset function and are based on fixtures
+  in the fixtures directory. Each fixture contains a set of test cases that are run against the
+  exportDataset function and a mocked backend API with disabled network requests.
+*/
+
 const fs = require('fs')
 const yaml = require('yaml')
 const nock = require('nock')
