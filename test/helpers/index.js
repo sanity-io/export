@@ -42,6 +42,18 @@ const getAssetHandler = () =>
     tmpDir: joinPath(os.tmpdir(), 'asset-handler-tests', `${Date.now()}`),
   })
 
+const untarExportedFile = async (outDir, filepath) => {
+  await tar.x({C: outDir, f: filepath})
+
+  // Attempt to find the export directory within the untarred files
+  const exportDir = fs.readdirSync(outDir).find((dir) => dir.includes('-export-'))
+  if (!exportDir) {
+    throw new Error(`Expected export dir not found in ${outDir}`)
+  }
+
+  return path.join(outDir, exportDir)
+}
+
 async function assertContents(fileName, content) {
   const cwd = dirname(fileName)
   await tar.x({
@@ -136,4 +148,5 @@ module.exports = {
   getMockQueue,
   arrayToStream,
   ndjsonToArray,
+  untarExportedFile,
 }
