@@ -25,7 +25,11 @@ async function exportDataset(opts) {
   const onProgress = options.onProgress || noop
   const archive = archiver('tar', {
     gzip: true,
-    gzipOptions: {level: options.compress ? zlib.Z_DEFAULT_COMPRESSION : zlib.Z_NO_COMPRESSION},
+    gzipOptions: {
+      level: options.compress
+        ? zlib.constants.Z_DEFAULT_COMPRESSION
+        : zlib.constants.Z_NO_COMPRESSION,
+    },
   })
 
   const slugDate = new Date()
