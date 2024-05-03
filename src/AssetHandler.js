@@ -192,14 +192,13 @@ class AssetHandler {
 
     if (stream.statusCode !== 200) {
       this.queue.clear()
+      let errMsg
       try {
         const err = await tryGetErrorFromStream(stream)
-        let errMsg = `Referenced asset URL "${url}" returned HTTP ${stream.statusCode}`
+        errMsg = `Referenced asset URL "${url}" returned HTTP ${stream.statusCode}`
         if (err) {
-          errMsg = `${errMsg}:\n\n${err}`
+          errMsg = `${errMsg}: ${err}`
         }
-
-        throw new Error(errMsg)
       } catch (err) {
         const message = 'Failed to parse error response from asset stream'
         if (typeof err.message === 'string') {
@@ -210,6 +209,8 @@ class AssetHandler {
 
         throw new Error(message, {cause: err})
       }
+
+      throw new Error(errMsg)
     }
 
     this.maybeCreateAssetDirs()
