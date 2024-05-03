@@ -52,8 +52,8 @@ async function exportDataset(opts) {
     maxRetries: options.maxAssetRetries,
   })
 
-  debug('Outputting assets (temporarily) to %s', tmpDir)
-  debug('Outputting to %s', options.outputPath === '-' ? 'stdout' : options.outputPath)
+  debug('Downloading assets (temporarily) to %s', tmpDir)
+  debug('Downloading to %s', options.outputPath === '-' ? 'stdout' : options.outputPath)
 
   let outputStream
   if (isWritableStream(options.outputPath)) {
@@ -77,13 +77,13 @@ async function exportDataset(opts) {
 
   miss.finished(archive, async (archiveErr) => {
     if (archiveErr) {
-      debug('Archiving errored! %s', archiveErr.stack)
+      debug('Archiving errored: %s', archiveErr.stack)
       await cleanup()
       reject(archiveErr)
       return
     }
 
-    debug('Archive finished!')
+    debug('Archive finished')
   })
 
   debug('Getting dataset export stream')
