@@ -131,13 +131,17 @@ class AssetHandler {
       throw dlError
     }
 
-    this.queue.add(() =>
-      doDownload().catch((err) => {
-        debug('Error downloading asset', err)
-        this.queue.clear()
-        this.reject(err)
-      }),
-    )
+    this.queue
+      .add(() =>
+        doDownload().catch((err) => {
+          debug('Failed to download the asset, aborting download', err)
+          this.queue.clear()
+          this.reject(err)
+        }),
+      )
+      .catch((error) => {
+        debug('Queued task failed', error)
+      })
   }
 
   maybeCreateAssetDirs() {
@@ -192,7 +196,6 @@ class AssetHandler {
     }
 
     if (stream.statusCode !== 200) {
-      this.queue.clear()
       let errMsg
       try {
         const err = await tryGetErrorFromStream(stream)
@@ -389,9 +392,20 @@ function writeHashedStream(filePath, stream) {
 
 function tryGetErrorFromStream(stream) {
   return new Promise((resolve, reject) => {
-    miss.pipe(stream, miss.concat(parse), (err) => (err ? reject(err) : noop))
+    let receivedData = false
+
+    miss.pipe(stream, miss.concat(parse), (err) => {
+      if (err) {
+        reject(err)
+      } else if (!receivedData) {
+        // Resolve with null if no data was received, to let the caller
+        // know we couldn't parse the error.
+        resolve(null)
+      }
+    })
 
     function parse(body) {
+      receivedData = true
       try {
         const parsed = JSON.parse(body.toString('utf8'))
         resolve(parsed.message || parsed.error || null)
