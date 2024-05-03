@@ -202,7 +202,11 @@ async function exportDataset(opts) {
     await cleanup()
 
     if (!err) {
-      resolve()
+      resolve({
+        outputPath: options.outputPath,
+        documentCount,
+        assetCount: assetHandler.filesWritten,
+      })
       return
     }
 
