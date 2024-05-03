@@ -8,7 +8,8 @@ const socketsWithTimeout = new WeakSet()
 
 const CONNECTION_TIMEOUT = 15 * 1000 // 15 seconds
 const READ_TIMEOUT = 3 * 60 * 1000 // 3 minutes
-const MAX_RETRIES = 5
+const DEFAULT_MAX_RETRIES = 5 // The _default_ max retries
+const RETRY_RELAY_MS = 1500 // 1.5 seconds
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -16,8 +17,11 @@ function delay(ms) {
 
 /* eslint-disable no-await-in-loop, max-depth */
 module.exports = async (options) => {
+  const maxRetries =
+    typeof options.maxRetries === 'number' ? options.maxRetries : DEFAULT_MAX_RETRIES
+
   let error
-  for (let i = 0; i < MAX_RETRIES; i++) {
+  for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await request({
         ...options,
@@ -47,8 +51,8 @@ module.exports = async (options) => {
         break
       }
 
-      debug('Error, retrying after %d ms: %s', 1500, error.message)
-      await delay(1500)
+      debug('Error, retrying after %d ms: %s', RETRY_RELAY_MS, error.message)
+      await delay(RETRY_RELAY_MS)
     }
   }
 

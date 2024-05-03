@@ -108,7 +108,7 @@ async function exportDataset(opts) {
     cb(null, chunk)
   }
 
-  const inputStream = await getDocumentsStream(options.client, options.dataset)
+  const inputStream = await getDocumentsStream(options)
   debug('Got HTTP %d', inputStream.statusCode)
   debug('Response headers: %o', inputStream.headers)
 
