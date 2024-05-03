@@ -157,7 +157,13 @@ class AssetHandler {
     const isImage = assetDoc._type === 'sanity.imageAsset'
 
     const url = parseUrl(assetDoc.url, true)
-    if (isImage && ['cdn.sanity.io', 'cdn.sanity.work'].includes(url.hostname) && token) {
+    if (
+      isImage &&
+      token &&
+      (['cdn.sanity.io', 'cdn.sanity.work'].includes(url.hostname) ||
+        // used in tests. use a very specific port to avoid conflicts
+        url.host === 'localhost:43216')
+    ) {
       headers.Authorization = `Bearer ${token}`
       url.query = {...(url.query || {}), dlRaw: 'true'}
     }

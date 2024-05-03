@@ -1,9 +1,12 @@
 const os = require('os')
-const path = require('path')
+const {join: joinPath, dirname} = require('path')
+const {readdir, readFile} = require('fs/promises')
+const tar = require('tar')
+const stringToStream = require('string-to-stream')
 const {
+  expect,
   jest: {fn: jestFn},
 } = require('@jest/globals')
-const stringToStream = require('string-to-stream')
 const AssetHandler = require('../../src/AssetHandler')
 
 const getMockClient = () => ({
@@ -36,10 +39,97 @@ const getAssetHandler = () =>
   new AssetHandler({
     prefix: 'test',
     client: getMockClient(),
-    tmpDir: path.join(os.tmpdir(), 'asset-handler-tests', `${Date.now()}`),
+    tmpDir: joinPath(os.tmpdir(), 'asset-handler-tests', `${Date.now()}`),
   })
 
+async function assertContents(fileName, content) {
+  const cwd = dirname(fileName)
+  await tar.x({
+    file: fileName,
+    gzip: true,
+    cwd,
+  })
+
+  const [dir] = (await readdir(cwd)).filter((entry) => entry !== 'out.tar.gz')
+  const baseDir = joinPath(cwd, dir)
+  const assetsMeta =
+    content.images || content.files ? await readJson(joinPath(baseDir, 'assets.json')) : undefined
+
+  if (content.images) {
+    const expectedImages = Object.keys(content.images)
+    const actualImages = await readdir(joinPath(baseDir, 'images')).catch((err) => {
+      if (err.code === 'ENOENT') {
+        return []
+      }
+
+      throw err
+    })
+
+    for (const image of expectedImages) {
+      expect(actualImages).toContain(image)
+
+      const metaKey = `image-${image.slice(0, 40)}`
+      const expectedMeta = content.images[metaKey] || {}
+      if (Object.keys(expectedMeta).length > 0) {
+        expect(assetsMeta[image]).toMatchObject(expectedMeta)
+      }
+    }
+
+    expect(actualImages.length).toBe(expectedImages.length)
+  }
+
+  if (content.files) {
+    const expectedFiles = Object.keys(content.files)
+    const actualFiles = await readdir(joinPath(baseDir, 'files')).catch((err) => {
+      if (err.code === 'ENOENT') {
+        return []
+      }
+
+      throw err
+    })
+    for (const file of expectedFiles) {
+      expect(actualFiles).toContain(file)
+
+      const metaKey = `file-${file.slice(0, 40)}`
+      const expectedMeta = content.files[metaKey] || {}
+      if (Object.keys(expectedMeta).length > 0) {
+        expect(assetsMeta[file]).toMatchObject(expectedMeta)
+      }
+    }
+
+    expect(actualFiles.length).toBe(expectedFiles.length)
+  }
+
+  if (content.documents) {
+    const expectedDocs = content.documents
+    const actualDocs = new Map()
+
+    ;(await readFile(joinPath(baseDir, 'data.ndjson'), 'utf-8'))
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+      .map((doc) => actualDocs.set(doc._id, doc))
+
+    for (const expectedDoc of expectedDocs) {
+      const actualDoc = actualDocs.get(expectedDoc._id)
+      expect(actualDoc).toMatchObject(expectedDoc)
+    }
+
+    expect(actualDocs.size).toBe(expectedDocs.length)
+  }
+}
+
+async function readJson(filePath) {
+  return readFile(filePath, {encoding: 'utf8'})
+    .then((content) => JSON.parse(content))
+    .catch((err) => {
+      console.error(`Failed to read JSON file at ${filePath}`)
+      throw err
+    })
+}
+
 module.exports = {
+  assertContents,
   getAssetHandler,
   getMockClient,
   getMockArchive,
