@@ -1,6 +1,7 @@
 const {getIt} = require('get-it')
 const {keepAlive, promise} = require('get-it/middleware')
 const debug = require('./debug')
+const {extractFirstError} = require('./util/extractFirstError')
 
 const request = getIt([keepAlive(), promise({onlyBody: true})])
 const socketsWithTimeout = new WeakSet()
@@ -33,26 +34,24 @@ module.exports = async (options) => {
         socketsWithTimeout.add(response.connection)
         response.connection.setTimeout(READ_TIMEOUT, () => {
           response.destroy(
-            new Error(`Read timeout: No data received on socket for ${READ_TIMEOUT} ms`),
+            new Error(`Export: Read timeout: No data received on socket for ${READ_TIMEOUT} ms`),
           )
         })
       }
 
       return response
     } catch (err) {
-      error = err
+      error = extractFirstError(err)
 
       if (err.response && err.response.statusCode && err.response.statusCode < 500) {
         break
       }
 
-      const message =
-        'name' in err && err.name === 'AggregateError' ? err.errors[0].message : err.message
-
-      debug('Error, retrying after 1500ms: %s', message)
+      debug('Error, retrying after %d ms: %s', 1500, error.message)
       await delay(1500)
     }
   }
 
+  error.message = `Export: Failed to fetch ${options.url}: ${error.message}`
   throw error
 }
