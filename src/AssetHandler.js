@@ -15,24 +15,6 @@ const ACTION_REMOVE = 'remove'
 const ACTION_REWRITE = 'rewrite'
 const ASSET_DOWNLOAD_CONCURRENCY = 8
 
-const retryHelper = (times, fn, onError) => {
-  let attempt = 0
-  const caller = (...args) => {
-    return fn(...args).catch((err) => {
-      if (onError) {
-        onError(err, attempt)
-      }
-      if (attempt < times) {
-        attempt++
-        return caller(...args)
-      }
-
-      throw err
-    })
-  }
-  return caller
-}
-
 class AssetHandler {
   constructor(options) {
     const concurrency = options.concurrency || ASSET_DOWNLOAD_CONCURRENCY
@@ -123,19 +105,31 @@ class AssetHandler {
     this.queueSize++
     this.downloading.push(assetDoc.url)
 
-    const doDownload = retryHelper(
-      10, // try 10 times
-      () => this.downloadAsset(assetDoc, dstPath),
-      (err, attempt) => {
-        debug(
-          `Error downloading asset %s (destination: %s), attempt %d`,
-          assetDoc._id,
-          dstPath,
-          attempt,
-          err,
-        )
-      },
-    )
+    const doDownload = async () => {
+      let dlError
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          return await this.downloadAsset(assetDoc, dstPath)
+        } catch (err) {
+          debug(
+            `Error downloading asset %s (destination: %s), attempt %d`,
+            assetDoc._id,
+            dstPath,
+            attempt,
+            err,
+          )
+
+          dlError = err
+
+          if ('statusCode' in err && err.statusCode >= 400 && err.statusCode < 500) {
+            // Don't retry on client errors
+            break
+          }
+        }
+      }
+      throw dlError
+    }
+
     this.queue.add(() =>
       doDownload().catch((err) => {
         debug('Error downloading asset', err)
@@ -210,7 +204,9 @@ class AssetHandler {
         throw new Error(message, {cause: err})
       }
 
-      throw new Error(errMsg)
+      const streamError = new Error(errMsg)
+      streamError.statusCode = stream.statusCode
+      throw streamError
     }
 
     this.maybeCreateAssetDirs()
