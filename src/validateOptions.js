@@ -2,6 +2,7 @@ const defaults = require('lodash/defaults')
 
 const clientMethods = ['getUrl', 'config']
 const booleanFlags = ['assets', 'raw', 'compress', 'drafts']
+const numberFlags = ['assetConcurrency']
 const exportDefaults = {
   compress: true,
   drafts: true,
@@ -39,6 +40,12 @@ function validateOptions(opts) {
   booleanFlags.forEach((flag) => {
     if (typeof options[flag] !== 'boolean') {
       throw new Error(`Flag ${flag} must be a boolean (true/false)`)
+    }
+  })
+
+  numberFlags.forEach((flag) => {
+    if (typeof options[flag] !== 'undefined' && typeof options[flag] !== 'number') {
+      throw new Error(`Flag ${flag} must be a number if specified`)
     }
   })
 
