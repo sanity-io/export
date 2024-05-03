@@ -232,6 +232,79 @@ describe('export', () => {
     })
   })
 
+  test('retries asset downloads on server error', async () => {
+    const port = 43216
+    const doc = {
+      _id: 'my-article',
+      _type: 'article',
+      title: 'Nice logo',
+      mainImage: {
+        _ref: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
+        _type: 'reference',
+      },
+    }
+
+    let attempt = 0
+    server = await getServer(port, (req, res) => {
+      if (req.url.startsWith('/images')) {
+        if (++attempt === 1) {
+          res.writeHead(500, 'Internal Server Error', {'Content-Type': 'application/json'})
+          res.end(JSON.stringify({error: 'Server error'}))
+          return
+        }
+        res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
+        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        return
+      }
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(
+        JSON.stringify({
+          _id: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
+          _type: 'sanity.imageAsset',
+          url: `http://localhost:${port}/images/ppsg7ml5/test/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png`,
+          path: 'images/ppsg7ml5/test/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
+          originalFilename: 'mead.png',
+          altText: 'Logo of mead',
+        }),
+      )
+      res.write('\n')
+      res.write(
+        JSON.stringify({
+          _id: 'file-497d1ba975eae4283a4e8906e3cb434110361f64-txt',
+          _type: 'sanity.fileAsset',
+          url: `http://localhost:${port}/files/ppsg7ml5/test/497d1ba975eae4283a4e8906e3cb434110361f64.txt`,
+          path: 'files/ppsg7ml5/test/497d1ba975eae4283a4e8906e3cb434110361f64.txt',
+          originalFilename: 'coffee.txt',
+        }),
+      )
+      res.write('\n')
+      res.write(JSON.stringify(doc))
+      res.end()
+    })
+    const options = await getOptions({port})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 2,
+      documentCount: 1,
+      outputPath: /out\.tar\.gz$/,
+    })
+
+    await assertContents(result.outputPath, {
+      documents: [doc],
+      images: {
+        'eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png': {
+          altText: 'Logo of mead',
+          originalFilename: 'mead.png',
+        },
+      },
+      files: {
+        '497d1ba975eae4283a4e8906e3cb434110361f64.txt': {
+          originalFilename: 'coffee.txt',
+        },
+      },
+    })
+  })
+
   test('includes asset documents verbatim in `raw` mode', async () => {
     const port = 43216
     const doc = {
