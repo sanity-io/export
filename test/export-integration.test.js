@@ -14,7 +14,6 @@ const rimraf = require('../src/util/rimraf')
 const sanity = require('@sanity/client')
 const {untarExportedFile, ndjsonToArray} = require('./helpers')
 const {newTestRunId, withTmpDir} = require('./helpers/suite')
-const {generateRandomImage} = require('./helpers/images')
 
 const fixturesDirectory = path.join(__dirname, 'fixtures')
 const testif = (condition) => (condition ? test : test.skip)
@@ -35,7 +34,9 @@ const setupNock = ({baseUrl, route, query, responseCode, responseBody, generateR
   mockedApi.query(query ? query : {})
   mockedApi.reply(
     responseCode ? responseCode : 200,
-    generateResponseFile === 'true' ? generateRandomImage() : responseBody,
+    generateResponseFile === 'true'
+      ? fs.readFileSync(path.join(fixturesDirectory, 'mead.png'))
+      : responseBody,
   )
 }
 
