@@ -8,6 +8,8 @@ const {
   jest: {fn: jestFn},
 } = require('@jest/globals')
 const AssetHandler = require('../../src/AssetHandler')
+const fs = require('fs')
+const path = require('path')
 
 const getMockClient = () => ({
   config: () => ({projectId: '__fixtures__', dataset: '__test__'}),
