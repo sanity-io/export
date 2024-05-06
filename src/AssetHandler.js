@@ -9,29 +9,11 @@ const pkg = require('../package.json')
 const debug = require('./debug')
 const requestStream = require('./requestStream')
 const rimraf = require('./util/rimraf')
+const {ASSET_DOWNLOAD_MAX_RETRIES, ASSET_DOWNLOAD_CONCURRENCY} = require('./constants')
 
 const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
 const ACTION_REMOVE = 'remove'
 const ACTION_REWRITE = 'rewrite'
-const ASSET_DOWNLOAD_CONCURRENCY = 8
-
-const retryHelper = (times, fn, onError) => {
-  let attempt = 0
-  const caller = (...args) => {
-    return fn(...args).catch((err) => {
-      if (onError) {
-        onError(err, attempt)
-      }
-      if (attempt < times) {
-        attempt++
-        return caller(...args)
-      }
-
-      throw err
-    })
-  }
-  return caller
-}
 
 class AssetHandler {
   constructor(options) {
@@ -47,6 +29,7 @@ class AssetHandler {
     this.assetMap = {}
     this.filesWritten = 0
     this.queueSize = 0
+    this.maxRetries = options.maxRetries || ASSET_DOWNLOAD_MAX_RETRIES
     this.queue = options.queue || new PQueue({concurrency})
 
     this.rejectedError = null
@@ -123,19 +106,31 @@ class AssetHandler {
     this.queueSize++
     this.downloading.push(assetDoc.url)
 
-    const doDownload = retryHelper(
-      10, // try 10 times
-      () => this.downloadAsset(assetDoc, dstPath),
-      (err, attempt) => {
-        debug(
-          `Error downloading asset %s (destination: %s), attempt %d`,
-          assetDoc._id,
-          dstPath,
-          attempt,
-          err,
-        )
-      },
-    )
+    const doDownload = async () => {
+      let dlError
+      for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+        try {
+          return await this.downloadAsset(assetDoc, dstPath)
+        } catch (err) {
+          debug(
+            `Error downloading asset %s (destination: %s), attempt %d`,
+            assetDoc._id,
+            dstPath,
+            attempt,
+            err,
+          )
+
+          dlError = err
+
+          if ('statusCode' in err && err.statusCode >= 400 && err.statusCode < 500) {
+            // Don't retry on client errors
+            break
+          }
+        }
+      }
+      throw dlError
+    }
+
     this.queue.add(() =>
       doDownload().catch((err) => {
         debug('Error downloading asset', err)
@@ -163,7 +158,13 @@ class AssetHandler {
     const isImage = assetDoc._type === 'sanity.imageAsset'
 
     const url = parseUrl(assetDoc.url, true)
-    if (isImage && ['cdn.sanity.io', 'cdn.sanity.work'].includes(url.hostname) && token) {
+    if (
+      isImage &&
+      token &&
+      (['cdn.sanity.io', 'cdn.sanity.work'].includes(url.hostname) ||
+        // used in tests. use a very specific port to avoid conflicts
+        url.host === 'localhost:43216')
+    ) {
       headers.Authorization = `Bearer ${token}`
       url.query = {...(url.query || {}), dlRaw: 'true'}
     }
@@ -192,14 +193,13 @@ class AssetHandler {
 
     if (stream.statusCode !== 200) {
       this.queue.clear()
+      let errMsg
       try {
         const err = await tryGetErrorFromStream(stream)
-        let errMsg = `Referenced asset URL "${url}" returned HTTP ${stream.statusCode}`
+        errMsg = `Referenced asset URL "${url}" returned HTTP ${stream.statusCode}`
         if (err) {
-          errMsg = `${errMsg}:\n\n${err}`
+          errMsg = `${errMsg}: ${err}`
         }
-
-        throw new Error(errMsg)
       } catch (err) {
         const message = 'Failed to parse error response from asset stream'
         if (typeof err.message === 'string') {
@@ -210,6 +210,10 @@ class AssetHandler {
 
         throw new Error(message, {cause: err})
       }
+
+      const streamError = new Error(errMsg)
+      streamError.statusCode = stream.statusCode
+      throw streamError
     }
 
     this.maybeCreateAssetDirs()
