@@ -9,11 +9,11 @@ const pkg = require('../package.json')
 const debug = require('./debug')
 const requestStream = require('./requestStream')
 const rimraf = require('./util/rimraf')
+const {ASSET_DOWNLOAD_MAX_RETRIES, ASSET_DOWNLOAD_CONCURRENCY} = require('./constants')
 
 const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
 const ACTION_REMOVE = 'remove'
 const ACTION_REWRITE = 'rewrite'
-const ASSET_DOWNLOAD_CONCURRENCY = 8
 
 class AssetHandler {
   constructor(options) {
@@ -29,6 +29,7 @@ class AssetHandler {
     this.assetMap = {}
     this.filesWritten = 0
     this.queueSize = 0
+    this.maxRetries = options.maxRetries || ASSET_DOWNLOAD_MAX_RETRIES
     this.queue = options.queue || new PQueue({concurrency})
 
     this.rejectedError = null
@@ -107,7 +108,7 @@ class AssetHandler {
 
     const doDownload = async () => {
       let dlError
-      for (let attempt = 0; attempt < 10; attempt++) {
+      for (let attempt = 0; attempt < this.maxRetries; attempt++) {
         try {
           return await this.downloadAsset(assetDoc, dstPath)
         } catch (err) {

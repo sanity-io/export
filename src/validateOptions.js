@@ -1,14 +1,16 @@
 const defaults = require('lodash/defaults')
+const {DOCUMENT_STREAM_MAX_RETRIES, ASSET_DOWNLOAD_MAX_RETRIES} = require('./constants')
 
 const clientMethods = ['getUrl', 'config']
 const booleanFlags = ['assets', 'raw', 'compress', 'drafts']
-const numberFlags = ['maxRetries', 'assetConcurrency']
+const numberFlags = ['maxAssetRetries', 'maxRetries', 'assetConcurrency']
 const exportDefaults = {
   compress: true,
   drafts: true,
   assets: true,
   raw: false,
-  maxRetries: 5,
+  maxRetries: DOCUMENT_STREAM_MAX_RETRIES,
+  maxAssetRetries: ASSET_DOWNLOAD_MAX_RETRIES,
 }
 
 function validateOptions(opts) {

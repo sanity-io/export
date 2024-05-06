@@ -49,6 +49,7 @@ async function exportDataset(opts) {
     tmpDir,
     prefix,
     concurrency: options.assetConcurrency,
+    maxRetries: options.maxAssetRetries,
   })
 
   debug('Outputting assets (temporarily) to %s', tmpDir)
