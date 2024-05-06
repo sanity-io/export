@@ -126,21 +126,14 @@ async function exportDataset(opts) {
     miss.through(reportDocumentCount),
   )
 
-  jsonStream.on('end', () => {
-    debug('Export stream completed')
-  })
-
-  jsonStream.on('error', (streamErr) => {
-    debug('Export stream error: ', streamErr)
-    reject(streamErr)
-  })
-
   miss.finished(jsonStream, async (err) => {
     if (err) {
+      debug('Export stream error: ', err)
       reject(err)
       return
     }
 
+    debug('Export stream completed')
     onProgress({
       step: 'Exporting documents...',
       current: documentCount,
