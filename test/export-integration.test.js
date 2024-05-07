@@ -29,15 +29,16 @@ const assertExportSuccess = async (exportDir, exportFilePath, dataContent, asset
   expect(JSON.parse(fs.readFileSync(`${extractedDir}/assets.json`, 'utf8'))).toEqual(assetsContent)
 }
 
-const setupNock = ({baseUrl, route, query, responseCode, responseBody, generateResponseFile}) => {
-  const mockedApi = nock(baseUrl).get(route ? route : '/')
+const setupNock = ({url, query, response}) => {
+  let u = new URL(url)
+  const mockedApi = nock(u.origin).get(u.pathname ? u.pathname : '/')
   mockedApi.query(query ? query : {})
-  mockedApi.reply(
-    responseCode ? responseCode : 200,
-    generateResponseFile === 'true'
-      ? fs.readFileSync(path.join(fixturesDirectory, 'mead.png'))
-      : responseBody,
-  )
+  let body =
+    response.bodyFromFile === true
+      ? fs.readFileSync(path.join(fixturesDirectory, response.bodyFromFile))
+      : response.body
+
+  mockedApi.reply(response.code ? response.code : 200, body)
 }
 
 describe('exportDataset function', () => {
@@ -64,7 +65,9 @@ describe('exportDataset function', () => {
       await withTmpDir(testRunPath, async (exportDir) => {
         const exportFilePath = path.join(exportDir, 'out.tar.gz')
         for (const apiMock of testData.apiMocks) {
-          setupNock(apiMock)
+          for (const response of apiMock.responses) {
+            setupNock({url: apiMock.url, query: apiMock.query, response})
+          }
         }
 
         const client = sanity.createClient({
@@ -78,22 +81,22 @@ describe('exportDataset function', () => {
         const opts = {
           client,
           dataset: 'production',
-          compress: false,
+          compress: true,
           assets: true,
           raw: false,
           onProgress: jest.fn(),
           outputPath: exportFilePath,
         }
 
-        if (testData.exportFails) {
-          await expect(exportDataset({...opts, ...testData.opts})).rejects.toThrow()
+        if (testData.error) {
+          await expect(exportDataset({...opts, ...testData.opts})).rejects.toThrow(testData.error)
         } else {
           await expect(exportDataset({...opts, ...testData.opts})).resolves.not.toThrow()
           await assertExportSuccess(
             exportDir,
             exportFilePath,
-            JSON.parse(testData.documentsFile),
-            JSON.parse(testData.assetsFile),
+            JSON.parse(testData.out.documents),
+            JSON.parse(testData.out.assets),
           )
           expect(opts.onProgress).toHaveBeenCalled()
         }
