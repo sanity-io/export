@@ -1,4 +1,3 @@
-skip: false
 opts:
 apiMocks:
   - url: https://h5hc8cgs.api.sanity.io/v1/data/export/production
@@ -8,13 +7,3 @@ apiMocks:
           {"_id": "book1", "_type": "book", "title": "Modern Scooters", "publisherImage": {"_type": "image", "caption": "Galaxy Publisher", "asset": {"_ref": "image-publisher-1-png"}, "parentPublisherImage": {"_type": "image", "asset": {"_ref": "image-publisher-3-jpg"}}}}
           {"_id": "book2", "_type": "book", "title": "Duplicity in Motion", "publisherImage": {"_type": "image", "asset": {"_ref": "image-publisher-1-png"}}}
           {"_id": "book3", "_type": "book", "title": "Tandem Tales", "publisherImage": {"_type": "image", "asset": {"_ref": "image-publisher-2-jpg"}}}
-
-out:
-  documents: |
-    [
-      {"_id": "book1", "_type": "book", "title": "Modern Scooters", "publisherImage": {"_type": "image", "caption": "Galaxy Publisher", "asset": {"_ref": "image-publisher-1-png"}, "parentPublisherImage": {"_type": "image", "asset": {"_ref": "image-publisher-3-jpg"}}}},
-      {"_id": "book2", "_type": "book", "title": "Duplicity in Motion", "publisherImage": {"_type": "image", "asset": {"_ref": "image-publisher-1-png"}}},
-      {"_id": "book3", "_type": "book", "title": "Tandem Tales", "publisherImage": {"_type": "image", "asset": {"_ref": "image-publisher-2-jpg"}}}
-    ]
-  assets: |
-    {}

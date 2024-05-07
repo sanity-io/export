@@ -4,47 +4,51 @@ This file contains integration tests for the exportDataset function and are base
   exportDataset function and a mocked backend API with disabled network requests.
 */
 
-const fs = require('fs')
-const yaml = require('yaml')
+const exportDataset = require('../src/export')
+const fs = require('fs/promises')
+const {readdirSync, readFileSync} = require('fs') // TODO: switch to fs/promises
 const nock = require('nock')
 const path = require('path')
-const {afterAll, describe, expect, test} = require('@jest/globals')
-const exportDataset = require('../src/export')
 const rimraf = require('../src/util/rimraf')
 const sanity = require('@sanity/client')
-const {untarExportedFile, ndjsonToArray} = require('./helpers')
+const yaml = require('yaml')
+const {afterAll, describe, expect, test} = require('@jest/globals')
 const {newTestRunId, withTmpDir} = require('./helpers/suite')
+const {untarExportedFile, ndjsonToArray} = require('./helpers')
 
 const fixturesDirectory = path.join(__dirname, 'fixtures')
-const testif = (condition) => (condition ? test : test.skip)
 
-const assertExportSuccess = async (exportDir, exportFilePath, dataContent, assetsContent) => {
-  expect(fs.existsSync(exportFilePath)).toBeTruthy()
-  const stats = fs.statSync(exportFilePath)
+const expectExportSuccess = async (exportDir, exportFilePath) => {
+  const stats = await fs.stat(exportFilePath)
   expect(stats.size).toBeGreaterThan(0)
 
   const extractedDir = await untarExportedFile(exportDir, exportFilePath)
-  expect(fs.existsSync(extractedDir)).toBeTruthy()
-  expect(ndjsonToArray(fs.readFileSync(`${extractedDir}/data.ndjson`, 'utf8'))).toEqual(dataContent)
-  expect(JSON.parse(fs.readFileSync(`${extractedDir}/assets.json`, 'utf8'))).toEqual(assetsContent)
+
+  const dataFile = await fs.readFile(`${extractedDir}/data.ndjson`, 'utf8')
+  expect(ndjsonToArray(dataFile)).toMatchSnapshot()
+
+  const assetsFile = await fs.readFile(`${extractedDir}/assets.json`, 'utf8')
+  expect(JSON.parse(assetsFile)).toMatchSnapshot()
 }
 
-const setupNock = ({url, query, response}) => {
+const setupNock = async ({url, query, response}) => {
   let u = new URL(url)
   const mockedApi = nock(u.origin).get(u.pathname ? u.pathname : '/')
   mockedApi.query(query ? query : {})
-  let body =
-    response.bodyFromFile === true
-      ? fs.readFileSync(path.join(fixturesDirectory, response.bodyFromFile))
-      : response.body
 
+  let body
+  if (response.bodyFromFile === true) {
+    body = await fs.readFile(path.join(fixturesDirectory, response.bodyFromFile))
+  } else {
+    body = response.body
+  }
   mockedApi.reply(response.code ? response.code : 200, body)
 }
 
-describe('exportDataset function', () => {
+describe('export integration tests', () => {
   let testRunPath
-  beforeAll(() => {
-    testRunPath = fs.mkdtempSync(path.join(__dirname, `testrun_${newTestRunId()}`))
+  beforeAll(async () => {
+    testRunPath = await fs.mkdtemp(path.join(__dirname, `testrun_${newTestRunId()}`))
   })
 
   afterAll(async () => {
@@ -54,19 +58,23 @@ describe('exportDataset function', () => {
     }
   })
 
-  const testFiles = fs.readdirSync(fixturesDirectory).filter((file) => file.endsWith('.yaml'))
+  const prettyTestName = (filename) => {
+    return path.parse(filename).name.replace(/-_/g, ' ')
+  }
+
+  const testFiles = readdirSync(fixturesDirectory).filter((file) => file.endsWith('.yaml'))
   testFiles.forEach((file) => {
     const fullPath = path.join(fixturesDirectory, file)
-    const fileContents = fs.readFileSync(fullPath, 'utf8')
+    const fileContents = readFileSync(fullPath, 'utf8')
     const testData = yaml.parse(fileContents)
 
-    testif(testData.skip !== true)(path.parse(file).name, async () => {
+    test(prettyTestName(file), async () => {
       // eslint-disable-next-line max-nested-callbacks
       await withTmpDir(testRunPath, async (exportDir) => {
         const exportFilePath = path.join(exportDir, 'out.tar.gz')
         for (const apiMock of testData.apiMocks) {
           for (const response of apiMock.responses) {
-            setupNock({url: apiMock.url, query: apiMock.query, response})
+            await setupNock({url: apiMock.url, query: apiMock.query, response})
           }
         }
 
@@ -92,12 +100,7 @@ describe('exportDataset function', () => {
           await expect(exportDataset({...opts, ...testData.opts})).rejects.toThrow(testData.error)
         } else {
           await expect(exportDataset({...opts, ...testData.opts})).resolves.not.toThrow()
-          await assertExportSuccess(
-            exportDir,
-            exportFilePath,
-            JSON.parse(testData.out.documents),
-            JSON.parse(testData.out.assets),
-          )
+          await expectExportSuccess(exportDir, exportFilePath)
           expect(opts.onProgress).toHaveBeenCalled()
         }
 

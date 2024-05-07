@@ -1,0 +1,597 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`export integration tests export-no-assets 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`export integration tests export-no-assets 2`] = `{}`;
+
+exports[`export integration tests export-no-document 1`] = `
+[
+  {},
+]
+`;
+
+exports[`export integration tests export-no-document 2`] = `{}`;
+
+exports[`export integration tests export-temporarily-failing-assets 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`export integration tests export-temporarily-failing-assets 2`] = `{}`;
+
+exports[`export integration tests export-with-assets 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`export integration tests export-with-assets 2`] = `{}`;
+
+exports[`exportDataset function "export-no-assets.yaml" 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`exportDataset function "export-no-assets.yaml" 2`] = `{}`;
+
+exports[`exportDataset function "export-no-document.yaml" 1`] = `
+[
+  {},
+]
+`;
+
+exports[`exportDataset function "export-no-document.yaml" 2`] = `{}`;
+
+exports[`exportDataset function "export-temporarily-failing-assets.yaml" 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`exportDataset function "export-temporarily-failing-assets.yaml" 2`] = `{}`;
+
+exports[`exportDataset function "export-with-assets.yaml" 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`exportDataset function "export-with-assets.yaml" 2`] = `{}`;
+
+exports[`exportDataset function export-no-assets 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`exportDataset function export-no-assets 2`] = `{}`;
+
+exports[`exportDataset function export-no-assets.yaml 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`exportDataset function export-no-assets.yaml 2`] = `{}`;
+
+exports[`exportDataset function export-no-document 1`] = `
+[
+  {},
+]
+`;
+
+exports[`exportDataset function export-no-document 2`] = `{}`;
+
+exports[`exportDataset function export-no-document.yaml 1`] = `
+[
+  {},
+]
+`;
+
+exports[`exportDataset function export-no-document.yaml 2`] = `{}`;
+
+exports[`exportDataset function export-temporarily-failing-assets 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`exportDataset function export-temporarily-failing-assets 2`] = `{}`;
+
+exports[`exportDataset function export-temporarily-failing-assets.yaml 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`exportDataset function export-temporarily-failing-assets.yaml 2`] = `{}`;
+
+exports[`exportDataset function export-with-assets 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`exportDataset function export-with-assets 2`] = `{}`;
+
+exports[`exportDataset function export-with-assets.yaml 1`] = `
+[
+  {
+    "_id": "book1",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+      "caption": "Galaxy Publisher",
+      "parentPublisherImage": {
+        "_type": "image",
+        "asset": {
+          "_ref": "image-publisher-3-jpg",
+        },
+      },
+    },
+    "title": "Modern Scooters",
+  },
+  {
+    "_id": "book2",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-1-png",
+      },
+    },
+    "title": "Duplicity in Motion",
+  },
+  {
+    "_id": "book3",
+    "_type": "book",
+    "publisherImage": {
+      "_type": "image",
+      "asset": {
+        "_ref": "image-publisher-2-jpg",
+      },
+    },
+    "title": "Tandem Tales",
+  },
+]
+`;
+
+exports[`exportDataset function export-with-assets.yaml 2`] = `{}`;

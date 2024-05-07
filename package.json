@@ -27,7 +27,7 @@
   ],
   "scripts": {
     "lint": "eslint .",
-    "test": "jest --detectOpenHandles"
+    "test": "jest --verbose"
   },
   "dependencies": {
     "@sanity/client": "^6.15.20",

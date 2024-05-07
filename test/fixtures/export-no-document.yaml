@@ -1,4 +1,3 @@
-skip: false
 opts:
 apiMocks:
   - url: https://h5hc8cgs.api.sanity.io/v1/data/export/production
@@ -6,9 +5,3 @@ apiMocks:
       - code: 200
         body: |
           {}
-
-out:
-  documents: |
-    [{}]
-  assets: |
-    {}
