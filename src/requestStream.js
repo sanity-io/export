@@ -42,6 +42,12 @@ module.exports = async (options) => {
           )
         })
       }
+      
+      if (response.statusCode !== 200) {
+        throw new Error(
+          `Export: Failed to fetch ${options.url}: HTTP ${response.statusCode} ${response.statusMessage}`,
+        )
+      }
 
       return response
     } catch (err) {
