@@ -37,9 +37,9 @@ module.exports = async (options) => {
         !socketsWithTimeout.has(response.connection)
       ) {
         socketsWithTimeout.add(response.connection)
-        response.connection.setTimeout(READ_TIMEOUT, () => {
+        response.connection.setTimeout(readTimeout, () => {
           response.destroy(
-            new Error(`Export: Read timeout: No data received on socket for ${READ_TIMEOUT} ms`),
+            new Error(`Export: Read timeout: No data received on socket for ${readTimeout} ms`),
           )
         })
       }
