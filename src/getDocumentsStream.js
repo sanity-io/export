@@ -11,5 +11,10 @@ module.exports = (options) => {
     ...(token ? {Authorization: `Bearer ${token}`} : {}),
   }
 
-  return requestStream({url, headers, maxRetries: options.maxRetries})
+  return requestStream({
+    url,
+    headers,
+    maxRetries: options.maxRetries,
+    readTimeout: options.readTimeout,
+  })
 }

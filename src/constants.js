@@ -20,3 +20,10 @@ exports.ASSET_DOWNLOAD_MAX_RETRIES = 10
  * @internal
  */
 exports.ASSET_DOWNLOAD_CONCURRENCY = 8
+
+/**
+ * How long to wait before timing out the read of a request due to inactivity.
+ * User overridable as `options.readTimeout`.
+ * @internal
+ */
+exports.REQUEST_READ_TIMEOUT = 3 * 60 * 1000 // 3 minutes
