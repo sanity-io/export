@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.38.1](https://github.com/sanity-io/export/compare/v3.38.0...v3.38.1) (2024-05-22)
+
+### Bug Fixes
+
+- stream documents to tmp file ([#8](https://github.com/sanity-io/export/issues/8)) ([2fed7bb](https://github.com/sanity-io/export/commit/2fed7bbe9973deadc49a741822c11ebf81079d38)), closes [/github.com/archiverjs/node-archiver/blob/master/lib/plugins/tar.js#L79-L90](https://github.com/sanity-io//github.com/archiverjs/node-archiver/blob/master/lib/plugins/tar.js/issues/L79-L90) [/github.com/archiverjs/archiver-utils/blob/master/index.js#L21-L43](https://github.com/sanity-io//github.com/archiverjs/archiver-utils/blob/master/index.js/issues/L21-L43)
+
 ## [3.38.0](https://github.com/sanity-io/export/compare/v3.37.4...v3.38.0) (2024-05-08)
 
 ### Features
