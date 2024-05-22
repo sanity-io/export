@@ -39,6 +39,9 @@ async function exportDataset(opts) {
 
   const prefix = `${opts.dataset}-export-${slugDate}`
   const tmpDir = path.join(os.tmpdir(), prefix)
+  fs.mkdirSync(tmpDir, {recursive: true})
+  const dataPath = path.join(tmpDir, 'data.ndjson')
+
   const cleanup = () =>
     rimraf(tmpDir).catch((err) => {
       debug(`Error while cleaning up temporary files: ${err.message}`)
@@ -126,7 +129,7 @@ async function exportDataset(opts) {
     miss.through(reportDocumentCount),
   )
 
-  miss.finished(jsonStream, async (err) => {
+  miss.pipe(jsonStream, fs.createWriteStream(dataPath), async (err) => {
     if (err) {
       debug('Export stream error: ', err)
       reject(err)
@@ -140,6 +143,9 @@ async function exportDataset(opts) {
       total: documentCount,
       update: true,
     })
+
+    debug('Adding data.ndjson to archive')
+    archive.file(dataPath, {name: 'data.ndjson', prefix})
 
     if (!options.raw && options.assets) {
       onProgress({step: 'Downloading assets...'})
@@ -197,7 +203,6 @@ async function exportDataset(opts) {
     debug('Archive warning: %s', err.message)
   })
 
-  archive.append(jsonStream, {name: 'data.ndjson', prefix})
   miss.pipe(archive, outputStream, onComplete)
 
   async function onComplete(err) {
@@ -205,6 +210,7 @@ async function exportDataset(opts) {
     await cleanup()
 
     if (!err) {
+      debug('Export completed')
       resolve({
         outputPath: options.outputPath,
         documentCount,
