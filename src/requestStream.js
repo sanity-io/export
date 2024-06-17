@@ -5,7 +5,6 @@ const {extractFirstError} = require('./util/extractFirstError')
 const {DOCUMENT_STREAM_MAX_RETRIES} = require('./constants')
 
 const request = getIt([keepAlive(), promise({onlyBody: true})])
-const socketsWithTimeout = new WeakSet()
 
 const CONNECTION_TIMEOUT = 15 * 1000 // 15 seconds
 const READ_TIMEOUT = 3 * 60 * 1000 // 3 minutes
@@ -23,27 +22,12 @@ module.exports = async (options) => {
   let error
   for (let i = 0; i < maxRetries; i++) {
     try {
-      const response = await request({
+      return await request({
         ...options,
         stream: true,
         maxRedirects: 0,
         timeout: {connect: CONNECTION_TIMEOUT, socket: READ_TIMEOUT},
       })
-
-      if (
-        response.connection &&
-        typeof response.connection.setTimeout === 'function' &&
-        !socketsWithTimeout.has(response.connection)
-      ) {
-        socketsWithTimeout.add(response.connection)
-        response.connection.setTimeout(READ_TIMEOUT, () => {
-          response.destroy(
-            new Error(`Export: Read timeout: No data received on socket for ${READ_TIMEOUT} ms`),
-          )
-        })
-      }
-
-      return response
     } catch (err) {
       error = extractFirstError(err)
 
