@@ -26,3 +26,10 @@ exports.ASSET_DOWNLOAD_CONCURRENCY = 8
  * @internal
  */
 exports.DOCUMENT_STREAM_DEBUG_INTERVAL = 10000
+
+/**
+ * How long to wait before timing out the read of a request due to inactivity.
+ * User overridable as `options.readTimeout`.
+ * @internal
+ */
+exports.REQUEST_READ_TIMEOUT = 3 * 60 * 1000 // 3 minutes
