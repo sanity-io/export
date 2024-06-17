@@ -2,12 +2,11 @@ const {getIt} = require('get-it')
 const {keepAlive, promise} = require('get-it/middleware')
 const debug = require('./debug')
 const {extractFirstError} = require('./util/extractFirstError')
-const {DOCUMENT_STREAM_MAX_RETRIES} = require('./constants')
+const {DOCUMENT_STREAM_MAX_RETRIES, REQUEST_READ_TIMEOUT} = require('./constants')
 
 const request = getIt([keepAlive(), promise({onlyBody: true})])
 
 const CONNECTION_TIMEOUT = 15 * 1000 // 15 seconds
-const READ_TIMEOUT = 3 * 60 * 1000 // 3 minutes
 const RETRY_DELAY_MS = 1500 // 1.5 seconds
 
 function delay(ms) {
@@ -19,6 +18,9 @@ module.exports = async (options) => {
   const maxRetries =
     typeof options.maxRetries === 'number' ? options.maxRetries : DOCUMENT_STREAM_MAX_RETRIES
 
+  const readTimeout =
+    typeof options.readTimeout === 'number' ? options.readTimeout : REQUEST_READ_TIMEOUT
+
   let error
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -26,7 +28,7 @@ module.exports = async (options) => {
         ...options,
         stream: true,
         maxRedirects: 0,
-        timeout: {connect: CONNECTION_TIMEOUT, socket: READ_TIMEOUT},
+        timeout: {connect: CONNECTION_TIMEOUT, socket: readTimeout},
       })
     } catch (err) {
       error = extractFirstError(err)
