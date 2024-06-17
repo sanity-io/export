@@ -20,3 +20,9 @@ exports.ASSET_DOWNLOAD_MAX_RETRIES = 10
  * @internal
  */
 exports.ASSET_DOWNLOAD_CONCURRENCY = 8
+
+/**
+ * How frequently we will `debug` log while streaming the documents.
+ * @internal
+ */
+exports.DOCUMENT_STREAM_DEBUG_INTERVAL = 10000
