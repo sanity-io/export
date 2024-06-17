@@ -154,7 +154,7 @@ async function exportDataset(opts) {
     if (debugTimer !== null) clearTimeout(debugTimer)
 
     if (err) {
-      debug('Export stream error: ', err)
+      debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
       reject(err)
       return
     }
