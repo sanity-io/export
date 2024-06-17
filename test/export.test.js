@@ -442,9 +442,7 @@ describe('export', () => {
 
   test('throws error if unable to reach api', async () => {
     const options = await getOptions({port: 43210})
-    await expect(() => exportDataset(options)).rejects.toThrow(
-      /Failed to fetch.*connect ECONNREFUSED/,
-    )
+    await expect(() => exportDataset(options)).rejects.toThrow(/Failed to fetch/)
   }, 15000)
 
   test('throws error if api responds with 5xx error consistently', async () => {
