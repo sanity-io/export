@@ -17,6 +17,7 @@ const stringifyStream = require('./stringifyStream')
 const tryParseJson = require('./tryParseJson')
 const rimraf = require('./util/rimraf')
 const validateOptions = require('./validateOptions')
+const {DOCUMENT_STREAM_DEBUG_INTERVAL} = require('./constants')
 
 const noop = () => null
 
@@ -93,11 +94,14 @@ async function exportDataset(opts) {
   onProgress({step: 'Exporting documents...'})
 
   let documentCount = 0
+  let lastDocumentID = null
   let lastReported = Date.now()
-  const reportDocumentCount = (chunk, enc, cb) => {
+  const reportDocumentCount = (doc, enc, cb) => {
     ++documentCount
 
     const now = Date.now()
+    // We report to the `onProgress` handler every 50 ms.
+    // It's up to the caller to not do too much expensive work.
     if (now - lastReported > 50) {
       onProgress({
         step: 'Exporting documents...',
@@ -109,12 +113,29 @@ async function exportDataset(opts) {
       lastReported = now
     }
 
-    cb(null, chunk)
+    lastDocumentID = doc._id
+
+    cb(null, doc)
   }
 
   const inputStream = await getDocumentsStream(options)
   debug('Got HTTP %d', inputStream.statusCode)
   debug('Response headers: %o', inputStream.headers)
+
+  let debugTimer = null
+  function scheduleDebugTimer() {
+    debugTimer = setTimeout(() => {
+      debug('Still streaming documents', {
+        documentCount,
+        lastDocumentID,
+      })
+
+      // Schedule another tick:
+      scheduleDebugTimer()
+    }, DOCUMENT_STREAM_DEBUG_INTERVAL)
+  }
+
+  scheduleDebugTimer()
 
   const jsonStream = miss.pipeline(
     inputStream,
@@ -125,11 +146,13 @@ async function exportDataset(opts) {
     assetStreamHandler,
     filterDocumentTypes(options.types),
     options.drafts ? miss.through.obj() : filterDrafts(),
+    miss.through.obj(reportDocumentCount),
     stringifyStream(),
-    miss.through(reportDocumentCount),
   )
 
   miss.pipe(jsonStream, fs.createWriteStream(dataPath), async (err) => {
+    if (debugTimer !== null) clearTimeout(debugTimer)
+
     if (err) {
       debug('Export stream error: ', err)
       reject(err)
