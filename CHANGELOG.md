@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.38.2](https://github.com/sanity-io/export/compare/v3.38.1...v3.38.2) (2024-06-21)
+
+### Bug Fixes
+
+- check for document attributes to prevent throwing on error like document ([d7ffa00](https://github.com/sanity-io/export/commit/d7ffa0014319d6edb01f5d2e63dde3ec634c0999))
+
 ## [3.38.1](https://github.com/sanity-io/export/compare/v3.38.0...v3.38.1) (2024-05-22)
 
 ### Bug Fixes
