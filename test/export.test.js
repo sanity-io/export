@@ -482,4 +482,33 @@ describe('export', () => {
       'Export: HTTP 400: Bad Request: `@sanity/export` version too old, please update',
     )
   })
+
+  test('can export error like documents', async () => {
+    const port = 43217
+    const doc = {
+      _id: 'my-article',
+      _type: 'article',
+      error: 'my error',
+      statusCode: 500,
+    }
+
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(JSON.stringify(doc))
+      res.end()
+    })
+    const options = await getOptions({port, drafts: false})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 1,
+      outputPath: /out\.tar\.gz$/,
+    })
+
+    await assertContents(result.outputPath, {
+      documents: [doc],
+      images: {},
+      files: {},
+    })
+  })
 })
