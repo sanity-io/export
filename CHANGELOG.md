@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.39.0](https://github.com/sanity-io/export/compare/v3.38.2...v3.39.0) (2024-06-24)
+
+### Features
+
+- add option for tweaking readTimeout ([03db723](https://github.com/sanity-io/export/commit/03db72362914298834780c083412dfdd5f9ea484))
+
 ## [3.38.2](https://github.com/sanity-io/export/compare/v3.38.1...v3.38.2) (2024-06-21)
 
 ### Bug Fixes
