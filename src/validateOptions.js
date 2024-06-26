@@ -6,13 +6,14 @@ const {
 } = require('./constants')
 
 const clientMethods = ['getUrl', 'config']
-const booleanFlags = ['assets', 'raw', 'compress', 'drafts']
+const booleanFlags = ['assets', 'raw', 'compress', 'drafts', 'useInconsistentCursor']
 const numberFlags = ['maxAssetRetries', 'maxRetries', 'assetConcurrency', 'readTimeout']
 const exportDefaults = {
   compress: true,
   drafts: true,
   assets: true,
   raw: false,
+  useInconsistentCursor: false,
   maxRetries: DOCUMENT_STREAM_MAX_RETRIES,
   maxAssetRetries: ASSET_DOWNLOAD_MAX_RETRIES,
   readTimeout: REQUEST_READ_TIMEOUT,

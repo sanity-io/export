@@ -11,6 +11,7 @@ const filterDocumentTypes = require('./filterDocumentTypes')
 const filterDrafts = require('./filterDrafts')
 const filterSystemDocuments = require('./filterSystemDocuments')
 const getDocumentsStream = require('./getDocumentsStream')
+const getDocumentCursorStream = require('./getDocumentCursorStream')
 const logFirstChunk = require('./logFirstChunk')
 const rejectOnApiError = require('./rejectOnApiError')
 const stringifyStream = require('./stringifyStream')
@@ -118,7 +119,9 @@ async function exportDataset(opts) {
     cb(null, doc)
   }
 
-  const inputStream = await getDocumentsStream(options)
+  const inputStream = options.useInconsistentCursor
+    ? await getDocumentCursorStream(options)
+    : await getDocumentsStream(options)
   debug('Got HTTP %d', inputStream.statusCode)
   debug('Response headers: %o', inputStream.headers)
 
