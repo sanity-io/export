@@ -11,13 +11,14 @@ const filterDocumentTypes = require('./filterDocumentTypes')
 const filterDrafts = require('./filterDrafts')
 const filterSystemDocuments = require('./filterSystemDocuments')
 const getDocumentsStream = require('./getDocumentsStream')
+const getDocumentCursorStream = require('./getDocumentCursorStream')
 const logFirstChunk = require('./logFirstChunk')
 const rejectOnApiError = require('./rejectOnApiError')
 const stringifyStream = require('./stringifyStream')
 const tryParseJson = require('./tryParseJson')
 const rimraf = require('./util/rimraf')
 const validateOptions = require('./validateOptions')
-const {DOCUMENT_STREAM_DEBUG_INTERVAL} = require('./constants')
+const {DOCUMENT_STREAM_DEBUG_INTERVAL, MODE_CURSOR, MODE_STREAM} = require('./constants')
 
 const noop = () => null
 
@@ -118,7 +119,7 @@ async function exportDataset(opts) {
     cb(null, doc)
   }
 
-  const inputStream = await getDocumentsStream(options)
+  const inputStream = await getDocumentInputStream(options)
   debug('Got HTTP %d', inputStream.statusCode)
   debug('Response headers: %o', inputStream.headers)
 
@@ -248,6 +249,17 @@ async function exportDataset(opts) {
   }
 
   return result
+}
+
+function getDocumentInputStream(options) {
+  if (options.mode === MODE_STREAM) {
+    return getDocumentsStream(options)
+  }
+  if (options.mode === MODE_CURSOR) {
+    return getDocumentCursorStream(options)
+  }
+
+  throw new Error(`Invalid mode: ${options.mode}`)
 }
 
 function isWritableStream(val) {
