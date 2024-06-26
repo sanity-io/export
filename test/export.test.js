@@ -509,4 +509,125 @@ describe('export', () => {
       files: {},
     })
   })
+
+  test('can export with cursor, multiple cursors', async () => {
+    const port = 43215
+    const documents = [
+      {
+        _id: 'first',
+        _type: 'article',
+        title: 'Hello, world!',
+      },
+      {
+        _id: 'second',
+        _type: 'article',
+        title: 'Goodbye, cruel world!',
+      },
+      {
+        _id: 'third-but-not-the-last',
+        _type: 'article',
+        title: 'Hello again, world!',
+      },
+      {
+        _id: 'fourth-and-last',
+        _type: 'article',
+        title: 'Goodbye again, cruel world!',
+      },
+    ]
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      const url = new URL(req.url, `http://localhost:${port}`)
+      switch (url.searchParams.get('nextCursor')) {
+        case '': {
+          res.write(JSON.stringify(documents[0]))
+          res.write('\n')
+          res.write(JSON.stringify({nextCursor: 'cursor-1'}))
+          res.end()
+          return
+        }
+
+        case 'cursor-1': {
+          res.write(JSON.stringify(documents[1]))
+          res.write('\n')
+          res.write(JSON.stringify({nextCursor: 'cursor-2'}))
+          res.end()
+          return
+        }
+
+        case 'cursor-2': {
+          res.write(JSON.stringify(documents[2]))
+          res.write('\n')
+          res.write(JSON.stringify({nextCursor: 'cursor-3'}))
+          res.end()
+          return
+        }
+
+        case 'cursor-3': {
+          res.write(JSON.stringify(documents[3]))
+          res.write('\n')
+          res.end()
+          return
+        }
+
+        default: {
+          throw new Error(`Unexpected cursor: ${req.query.nextCursor}`)
+        }
+      }
+    })
+    const options = await getOptions({port, useInconsistentCursor: true})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 4,
+      outputPath: /out\.tar\.gz$/,
+    })
+
+    await assertContents(result.outputPath, {
+      documents,
+    })
+  })
+  test('can export with cursor, no cursor', async () => {
+    const port = 43215
+    const documents = [
+      {
+        _id: 'first',
+        _type: 'article',
+        title: 'Hello, world!',
+      },
+      {
+        _id: 'second',
+        _type: 'article',
+        title: 'Goodbye, cruel world!',
+      },
+      {
+        _id: 'third-but-not-the-last',
+        _type: 'article',
+        title: 'Hello again, world!',
+      },
+      {
+        _id: 'fourth-and-last',
+        _type: 'article',
+        title: 'Goodbye again, cruel world!',
+      },
+    ]
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      for (const document of documents) {
+        res.write(JSON.stringify(document))
+        res.write('\n')
+      }
+      res.end()
+    })
+    const options = await getOptions({port, useInconsistentCursor: true})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 4,
+      outputPath: /out\.tar\.gz$/,
+    })
+
+    await assertContents(result.outputPath, {
+      documents,
+    })
+  })
 })
