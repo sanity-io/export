@@ -3,6 +3,8 @@ const {
   DOCUMENT_STREAM_MAX_RETRIES,
   ASSET_DOWNLOAD_MAX_RETRIES,
   REQUEST_READ_TIMEOUT,
+  MODE_STREAM,
+  MODE_CURSOR,
 } = require('./constants')
 
 const clientMethods = ['getUrl', 'config']
@@ -13,6 +15,7 @@ const exportDefaults = {
   drafts: true,
   assets: true,
   raw: false,
+  mode: MODE_STREAM,
   maxRetries: DOCUMENT_STREAM_MAX_RETRIES,
   maxAssetRetries: ASSET_DOWNLOAD_MAX_RETRIES,
   readTimeout: REQUEST_READ_TIMEOUT,
@@ -23,6 +26,15 @@ function validateOptions(opts) {
 
   if (typeof options.dataset !== 'string' || options.dataset.length < 1) {
     throw new Error(`options.dataset must be a valid dataset name`)
+  }
+
+  if (
+    typeof options.mode !== 'string' ||
+    (options.mode !== MODE_STREAM && options.mode !== MODE_CURSOR)
+  ) {
+    throw new Error(
+      `options.mode must be either "${MODE_STREAM}" or "${MODE_CURSOR}", got "${options.mode}"`,
+    )
   }
 
   if (options.onProgress && typeof options.onProgress !== 'function') {
