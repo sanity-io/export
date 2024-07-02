@@ -91,7 +91,7 @@ async function exportDataset(opts) {
     debug('Archive finished')
   })
 
-  debug('Getting dataset export stream')
+  debug('Getting dataset export stream, mode: "%s"', options.mode)
   onProgress({step: 'Exporting documents...'})
 
   let documentCount = 0
