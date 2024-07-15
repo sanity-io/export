@@ -42,6 +42,11 @@ exportDataset({
 
   // Run 12 concurrent asset downloads
   assetConcurrency: 12,
+
+  // What mode to use when exporting documents, can be eiter `stream`(default) or `cursor`.
+  // Cursor mode might help when dealing with large datasets, but might yield inconsistent results if the dataset is mutated during export.
+  // Default: 'stream'
+  mode: 'stream',
 })
 ```
 
