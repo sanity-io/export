@@ -15,11 +15,14 @@ module.exports = async (options) => {
 
       let parsedChunk = null
       try {
-        parsedChunk = JSON.parse(chunk.toString())
+        const chunkStr = chunk.toString()
+        if (chunkStr.trim() !== '') {
+          parsedChunk = JSON.parse(chunkStr)
+        }
       } catch (err) {
         // Ignore JSON parse errors
         // this can happen if the chunk is not a JSON object. We just pass it through and let the caller handle it.
-        debug('Failed to parse JSON chunk', err, chunk.toString())
+        debug('Failed to parse JSON chunk', err)
       }
 
       if (
