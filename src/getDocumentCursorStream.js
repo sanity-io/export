@@ -22,7 +22,7 @@ module.exports = async (options) => {
       } catch (err) {
         // Ignore JSON parse errors
         // this can happen if the chunk is not a JSON object. We just pass it through and let the caller handle it.
-        debug('Failed to parse JSON chunk', err)
+        debug('Failed to parse JSON chunk, ignoring', err, chunk.toString())
       }
 
       if (
@@ -32,7 +32,7 @@ module.exports = async (options) => {
         typeof parsedChunk.nextCursor === 'string' &&
         !('_id' in parsedChunk)
       ) {
-        debug('Got next cursor, fetching next stream', parsedChunk.nextCursor)
+        debug('Got next cursor "%s", fetching next stream', parsedChunk.nextCursor)
         streamsInflight++
 
         const reqStream = await startStream(options, parsedChunk.nextCursor)
