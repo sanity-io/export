@@ -120,8 +120,12 @@ async function exportDataset(opts) {
   }
 
   const inputStream = await getDocumentInputStream(options)
-  debug('Got HTTP %d', inputStream.statusCode)
-  debug('Response headers: %o', inputStream.headers)
+  if (inputStream.statusCode) {
+    debug('Got HTTP %d', inputStream.statusCode)
+  }
+  if (inputStream.headers) {
+    debug('Response headers: %o', inputStream.headers)
+  }
 
   let debugTimer = null
   function scheduleDebugTimer() {

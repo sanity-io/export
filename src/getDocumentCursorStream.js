@@ -77,5 +77,9 @@ function startStream(options, nextCursor) {
 
   debug('Starting stream with cursor "%s"', nextCursor)
 
-  return requestStream({url, headers, maxRetries: options.maxRetries})
+  return requestStream({url, headers, maxRetries: options.maxRetries}).then((res) => {
+    debug('Got stream with HTTP %d', res.statusCode)
+
+    return res
+  })
 }
