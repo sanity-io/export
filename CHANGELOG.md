@@ -5,6 +5,19 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.41.0](https://github.com/sanity-io/export/compare/v3.40.0...v3.41.0) (2024-07-22)
+
+### Features
+
+- add more debug logs to cursor stream ([c4ab854](https://github.com/sanity-io/export/commit/c4ab8549cb24380833729d4d241d4b1ef274fb76))
+- add status code logging to export with cursor ([0d1f341](https://github.com/sanity-io/export/commit/0d1f341fbf0dceed58b2f5bfc2a4e7f377cff07f))
+
+### Bug Fixes
+
+- **cursor:** dont parse empty strings ([dd20c28](https://github.com/sanity-io/export/commit/dd20c288b779d94d1a83af6e8c71fb079a18c5df))
+- handle multiple json docs inside one chunk when streaming with cursor ([b17e562](https://github.com/sanity-io/export/commit/b17e562462fcaef564503c64af54d26976a8d056))
+- log failed chunk ([11e78c7](https://github.com/sanity-io/export/commit/11e78c77586ec3bb0fbdf19a9e256071b0803449))
+
 ## [3.40.0](https://github.com/sanity-io/export/compare/v3.39.0...v3.40.0) (2024-07-02)
 
 ### Features
