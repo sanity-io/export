@@ -534,7 +534,7 @@ describe('export', () => {
       {
         _id: 'third-but-not-the-last',
         _type: 'article',
-        title: 'Hello again, world!',
+        title: 'Hello again, \r\nworld!',
       },
       {
         _id: 'fourth-and-last',
@@ -550,6 +550,7 @@ describe('export', () => {
           res.write(JSON.stringify(documents[0]))
           res.write('\n')
           res.write(JSON.stringify({nextCursor: 'cursor-1'}))
+          res.write('\n')
           res.end()
           return
         }
@@ -558,21 +559,20 @@ describe('export', () => {
           res.write(JSON.stringify(documents[1]))
           res.write('\n')
           res.write(JSON.stringify({nextCursor: 'cursor-2'}))
+          res.write('\n')
           res.end()
           return
         }
 
         case 'cursor-2': {
-          res.write(JSON.stringify(documents[2]))
+          res.write(`${JSON.stringify(documents[2])}\n${JSON.stringify({nextCursor: 'cursor-3'})}`)
           res.write('\n')
-          res.write(JSON.stringify({nextCursor: 'cursor-3'}))
           res.end()
           return
         }
 
         case 'cursor-3': {
           res.write(JSON.stringify(documents[3]))
-          res.write('\n')
           res.end()
           return
         }
