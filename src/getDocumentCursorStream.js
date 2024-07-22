@@ -1,6 +1,7 @@
 const {Transform} = require('node:stream')
 
 const pkg = require('../package.json')
+const debug = require('./debug')
 const requestStream = require('./requestStream')
 
 module.exports = async (options) => {
@@ -18,6 +19,7 @@ module.exports = async (options) => {
       } catch (err) {
         // Ignore JSON parse errors
         // this can happen if the chunk is not a JSON object. We just pass it through and let the caller handle it.
+        debug('Failed to parse JSON chunk', err, chunk.toString())
       }
 
       if (
@@ -27,6 +29,7 @@ module.exports = async (options) => {
         typeof parsedChunk.nextCursor === 'string' &&
         !('_id' in parsedChunk)
       ) {
+        debug('Got next cursor, fetching next stream', parsedChunk.nextCursor)
         streamsInflight++
 
         const reqStream = await startStream(options, parsedChunk.nextCursor)
@@ -68,6 +71,8 @@ function startStream(options, nextCursor) {
     'User-Agent': `${pkg.name}@${pkg.version}`,
     ...(token ? {Authorization: `Bearer ${token}`} : {}),
   }
+
+  debug('Starting stream with cursor "%s"', nextCursor)
 
   return requestStream({url, headers, maxRetries: options.maxRetries})
 }
