@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.41.1](https://github.com/sanity-io/export/compare/v3.41.0...v3.41.1) (2024-12-11)
+
+### Bug Fixes
+
+- **deps:** upgrade rimraf to latest ([#17](https://github.com/sanity-io/export/issues/17)) ([6b3cfea](https://github.com/sanity-io/export/commit/6b3cfea6c77f334eb212f4f5e5d03c697b07061b))
+
 ## [3.41.0](https://github.com/sanity-io/export/compare/v3.40.0...v3.41.0) (2024-07-22)
 
 ### Features
