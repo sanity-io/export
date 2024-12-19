@@ -5,8 +5,10 @@ const zlib = require('zlib')
 const archiver = require('archiver')
 const miss = require('mississippi')
 const split = require('split2')
+const JsonStreamStringify = require('json-stream-stringify')
 const AssetHandler = require('./AssetHandler')
 const debug = require('./debug')
+const pipeAsync = require('./util/pipeAsync')
 const filterDocumentTypes = require('./filterDocumentTypes')
 const filterDrafts = require('./filterDrafts')
 const filterSystemDocuments = require('./filterSystemDocuments')
@@ -43,6 +45,7 @@ async function exportDataset(opts) {
   const tmpDir = path.join(os.tmpdir(), prefix)
   fs.mkdirSync(tmpDir, {recursive: true})
   const dataPath = path.join(tmpDir, 'data.ndjson')
+  const assetsPath = path.join(tmpDir, 'assets.json')
 
   const cleanup = () =>
     rimraf(tmpDir).catch((err) => {
@@ -209,7 +212,9 @@ async function exportDataset(opts) {
         update: true,
       })
 
-      archive.append(JSON.stringify(assetMap), {name: 'assets.json', prefix})
+      const assetsStream = fs.createWriteStream(assetsPath)
+      await pipeAsync(new JsonStreamStringify(assetMap), assetsStream)
+      archive.file(assetsPath, {name: 'assets.json', prefix})
       clearInterval(progressInterval)
     } catch (assetErr) {
       clearInterval(progressInterval)
