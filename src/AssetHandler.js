@@ -112,6 +112,20 @@ class AssetHandler {
         try {
           return await this.downloadAsset(assetDoc, dstPath)
         } catch (err) {
+          // Ignore inaccessible assets
+          switch (err.statusCode) {
+            case 401:
+            case 403:
+            case 404:
+              console.warn(
+                `⚠ Asset failed with HTTP %d (ignoring): %s`,
+                err.statusCode,
+                assetDoc._id,
+              )
+              return true
+            default:
+          }
+
           debug(
             `Error downloading asset %s (destination: %s), attempt %d`,
             assetDoc._id,
@@ -179,6 +193,9 @@ class AssetHandler {
   // eslint-disable-next-line max-statements
   async downloadAsset(assetDoc, dstPath) {
     const {url} = assetDoc
+
+    debug('Downloading asset %s', url)
+
     const options = this.getAssetRequestOptions(assetDoc)
 
     let stream
