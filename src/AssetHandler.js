@@ -112,10 +112,18 @@ class AssetHandler {
         try {
           return await this.downloadAsset(assetDoc, dstPath)
         } catch (err) {
-          // Ignore missing assets
-          if (err.statusCode === 404) {
-            console.warn(`⚠ Asset not found (ignoring): %s`, assetDoc._id)
-            return false
+          // Ignore inaccessible assets
+          switch (err.statusCode) {
+            case 401:
+            case 403:
+            case 404:
+              console.warn(
+                `⚠ Asset failed with HTTP %d (ignoring): %s`,
+                err.statusCode,
+                assetDoc._id,
+              )
+              return true
+            default:
           }
 
           debug(
