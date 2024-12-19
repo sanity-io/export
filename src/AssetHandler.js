@@ -112,6 +112,12 @@ class AssetHandler {
         try {
           return await this.downloadAsset(assetDoc, dstPath)
         } catch (err) {
+          // Ignore missing assets
+          if (err.statusCode === 404) {
+            console.warn(`⚠ Asset not found (ignoring): %s`, assetDoc._id)
+            return false
+          }
+
           debug(
             `Error downloading asset %s (destination: %s), attempt %d`,
             assetDoc._id,
@@ -179,6 +185,9 @@ class AssetHandler {
   // eslint-disable-next-line max-statements
   async downloadAsset(assetDoc, dstPath) {
     const {url} = assetDoc
+
+    debug('Downloading asset %s', url)
+
     const options = this.getAssetRequestOptions(assetDoc)
 
     let stream
