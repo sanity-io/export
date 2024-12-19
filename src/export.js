@@ -35,6 +35,12 @@ async function exportDataset(opts) {
         : zlib.constants.Z_NO_COMPRESSION,
     },
   })
+  archive.on('warning', (err) => {
+    debug('Archive warning: %s', err.message)
+  })
+  archive.on('entry', (entry) => {
+    debug('Adding archive entry: %s', entry.name)
+  })
 
   const slugDate = new Date()
     .toISOString()
@@ -230,10 +236,6 @@ async function exportDataset(opts) {
     debug('Finalizing archive, flushing streams')
     onProgress({step: 'Adding assets to archive...'})
     await archive.finalize()
-  })
-
-  archive.on('warning', (err) => {
-    debug('Archive warning: %s', err.message)
   })
 
   miss.pipe(archive, outputStream, onComplete)
