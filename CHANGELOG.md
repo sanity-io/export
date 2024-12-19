@@ -5,6 +5,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.42.0](https://github.com/sanity-io/export/compare/v3.41.2...v3.42.0) (2024-12-19)
+
+### Features
+
+- also ignore 401 and 403 when downloading assets. ([8f5df3d](https://github.com/sanity-io/export/commit/8f5df3d6684121b0389e078a92385e5287c43456))
+- debug logging of archiver events. ([f226bea](https://github.com/sanity-io/export/commit/f226bea73da9661b56a1a3db40ba14d2daee10c5))
+- ignore 404 errors when downloading assets. ([5f2790c](https://github.com/sanity-io/export/commit/5f2790c9c80b23150ff55044fd8b9d030e0f144c))
+
 ## [3.41.2](https://github.com/sanity-io/export/compare/v3.41.1...v3.41.2) (2024-12-19)
 
 ### Bug Fixes
