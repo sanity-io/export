@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.41.2](https://github.com/sanity-io/export/compare/v3.41.1...v3.41.2) (2024-12-19)
+
+### Bug Fixes
+
+- fixes stringifying of large asset maps by streaming the JSON to file. ([f8e24c9](https://github.com/sanity-io/export/commit/f8e24c92811abc9dfcc1c40c6a2e3f5a5e3e3122))
+
 ## [3.41.1](https://github.com/sanity-io/export/compare/v3.41.0...v3.41.1) (2024-12-11)
 
 ### Bug Fixes
