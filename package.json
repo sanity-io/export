@@ -30,8 +30,8 @@
     "test": "jest --verbose"
   },
   "dependencies": {
-    "@sanity/client": "^6.15.20",
-    "@sanity/util": "3.37.2",
+    "@sanity/client": "^6.24.1",
+    "@sanity/util": "3.68.3",
     "archiver": "^7.0.0",
     "debug": "^4.3.4",
     "get-it": "^8.6.2",
