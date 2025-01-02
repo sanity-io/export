@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.42.1](https://github.com/sanity-io/export/compare/v3.42.0...v3.42.1) (2025-01-02)
+
+### Bug Fixes
+
+- bump `@sanity/util` ([0069bc3](https://github.com/sanity-io/export/commit/0069bc30b04bb7fc47f44fed36a3f0b52c179d03))
+
 ## [3.42.0](https://github.com/sanity-io/export/compare/v3.41.2...v3.42.0) (2024-12-19)
 
 ### Features
