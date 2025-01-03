@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.42.2](https://github.com/sanity-io/export/compare/v3.42.1...v3.42.2) (2025-01-03)
+
+### Bug Fixes
+
+- retain falsy string and int array elements during export ([#20](https://github.com/sanity-io/export/issues/20)) ([ffb04f2](https://github.com/sanity-io/export/commit/ffb04f244c65abdcc2b8f40d2d7a22ee5151c0a0))
+
 ## [3.42.1](https://github.com/sanity-io/export/compare/v3.42.0...v3.42.1) (2025-01-02)
 
 ### Bug Fixes
