@@ -638,4 +638,64 @@ describe('export', () => {
       documents,
     })
   })
+  test('can export arrays with empty strings, eg. from a table generated from @sanity/table', async () => {
+    const port = 43215
+    const documents = [
+      {
+        _id: 'full-table',
+        _type: 'table',
+        myTable: {
+          rows: [
+            {
+              _key: '1',
+              _type: 'tableRow',
+              cells: ['a', '1'],
+            },
+            {
+              _key: '2',
+              _type: 'tableRow',
+              cells: ['b', '2'],
+            },
+          ],
+        },
+      },
+      {
+        _id: 'not-so-full-table',
+        _type: 'table',
+        myTable: {
+          rows: [
+            {
+              _key: '1',
+              _type: 'tableRow',
+              cells: ['a', '1'],
+            },
+            {
+              _key: '2',
+              _type: 'tableRow',
+              cells: ['b', ''],
+            },
+          ],
+        },
+      },
+    ]
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(JSON.stringify(documents[0]))
+      res.write('\n')
+      res.write(JSON.stringify(documents[1]))
+      res.end()
+    })
+
+    const options = await getOptions({port})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 2,
+      outputPath: /out\.tar\.gz$/,
+    })
+
+    await assertContents(result.outputPath, {
+      documents,
+    })
+  })
 })

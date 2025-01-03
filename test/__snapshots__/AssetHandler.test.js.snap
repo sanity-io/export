@@ -50,6 +50,14 @@ exports[`asset handler can rewrite documents / queue downloads: Nothing rewritte
   "_id": "plain",
   "_type": "bike",
   "name": "Broom",
+  "tags": [
+    "flying",
+    "",
+    1,
+    0,
+    true,
+    false,
+  ],
 }
 `;
 
