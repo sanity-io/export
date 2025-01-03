@@ -24,7 +24,7 @@ describe('asset handler', () => {
       {_id: 'mzFgq1cvHSEeGscxBsRFoqKG', _type: 'sanity.imageAsset', url: 'https://cdn.sanity.io/images/__fixtures__/__test__/mzFgq1cvHSEeGscxBsRFoqKG-2048x1364.jpg'},
       {_id: 'image-54e9595477915230501dfec656c8e86235bb470a-dads3360x840-png', _type: 'sanity.imageAsset', url: 'https://cdn.sanity.io/images/__fixtures__/__test__/6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840.png'},
       {_id: 'image-31befc6dfa0315d6c535b8a57e34f86c18eb5f20-310x282-jpg', _type: 'sanity.imageAsset', url: 'https://cdn.sanity.io/images/__fixtures__/__test__/31befc6dfa0315d6c535b8a57e34f86c18eb5f20-310x282.jpg'},
-      {_id: 'plain', _type: 'bike', name: 'Broom'}
+      {_id: 'plain', _type: 'bike', name: 'Broom', tags: ['flying', '', 1, 0, true, false]}
     ]
 
     const assetHandler = getAssetHandler()

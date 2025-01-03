@@ -313,7 +313,9 @@ class AssetHandler {
   findAndModify = (item, action) => {
     if (Array.isArray(item)) {
       const children = item.map((child) => this.findAndModify(child, action))
-      return children.filter(Boolean)
+      return children.filter(function (child) {
+        return child !== null && child !== undefined
+      })
     }
 
     if (!item || typeof item !== 'object') {
