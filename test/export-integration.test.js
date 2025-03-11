@@ -82,7 +82,7 @@ describe('export integration tests', () => {
           projectId: 'h5hc8cgs',
           dataset: 'production',
           useCdn: false,
-          apiVersion: '1',
+          apiVersion: '2025-02-19',
           token: 'REDACTED',
         })
 
