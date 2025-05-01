@@ -20,6 +20,7 @@ const exportDefaults = {
   maxRetries: DOCUMENT_STREAM_MAX_RETRIES,
   maxAssetRetries: ASSET_DOWNLOAD_MAX_RETRIES,
   readTimeout: REQUEST_READ_TIMEOUT,
+  filterDocument: () => true,
 }
 
 function validateOptions(opts) {
@@ -76,6 +77,13 @@ function validateOptions(opts) {
 
   if (options.assetConcurrency && (options.assetConcurrency < 1 || options.assetConcurrency > 24)) {
     throw new Error('`assetConcurrency` must be between 1 and 24')
+  }
+
+  if (
+    typeof options.filterDocument !== 'undefined' &&
+    typeof options.filterDocument !== 'function'
+  ) {
+    throw new Error('`filterDocument` must be a function')
   }
 
   if (typeof assetsMap !== 'undefined' && typeof assetsMap !== 'boolean') {
