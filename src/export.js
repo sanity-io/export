@@ -47,7 +47,7 @@ async function exportDataset(opts) {
     .replace(/[^a-z0-9]/gi, '-')
     .toLowerCase()
 
-  const prefix = `${opts.dataset}-export-${slugDate}`
+  const prefix = `${opts.dataset ?? opts.mediaLibraryId}-export-${slugDate}`
   const tmpDir = path.join(os.tmpdir(), prefix)
   fs.mkdirSync(tmpDir, {recursive: true})
   const dataPath = path.join(tmpDir, 'data.ndjson')

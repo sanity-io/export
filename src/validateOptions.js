@@ -27,8 +27,20 @@ const exportDefaults = {
 function validateOptions(opts) {
   const options = defaults({}, opts, exportDefaults)
 
-  if (typeof options.dataset !== 'string' || options.dataset.length < 1) {
-    throw new Error(`options.dataset must be a valid dataset name`)
+  const resources = [options.dataset, options.mediaLibraryId].filter(
+    (resource) => typeof resource === 'string' && resource.length !== 0,
+  )
+
+  if (resources.length === 0) {
+    throw new Error(
+      'either `options.dataset` or `options.mediaLibraryId` must be specified, got neither',
+    )
+  }
+
+  if (resources.length === 2) {
+    throw new Error(
+      'either `options.dataset` or `options.mediaLibraryId` must be specified, got both',
+    )
   }
 
   if (
