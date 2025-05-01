@@ -66,9 +66,13 @@ module.exports = async (options) => {
 }
 
 function startStream(options, nextCursor) {
-  const url = options.client.getUrl(
-    `/data/export/${options.dataset}?nextCursor=${encodeURIComponent(nextCursor)}`,
+  const baseUrl = options.client.getUrl(
+    options.dataset
+      ? `/data/export/${options.dataset}`
+      : `/media-libraries/${options.mediaLibraryId}/export`,
   )
+
+  const url = `${baseUrl}?nextCursor=${encodeURIComponent(nextCursor)}`
   const token = options.client.config().token
   const headers = {
     'User-Agent': `${pkg.name}@${pkg.version}`,
