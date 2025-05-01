@@ -698,4 +698,41 @@ describe('export', () => {
       documents,
     })
   })
+
+  test('can filter documents', async () => {
+    const port = 43218
+    const doc = {
+      _id: 'this-is-my-jam',
+      _type: 'track',
+      title: 'Please include me',
+    }
+
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(
+        JSON.stringify({
+          _id: 'foo.bar.baz',
+          _type: 'track',
+          title: 'Do not include me',
+        }),
+      )
+      res.write('\n')
+      res.write(JSON.stringify(doc))
+      res.end()
+    })
+    const options = await getOptions({
+      port,
+      filterDocument: ({_id}) => _id === 'this-is-my-jam',
+    })
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 1,
+      outputPath: /out\.tar\.gz$/,
+    })
+
+    await assertContents(result.outputPath, {
+      documents: [doc],
+    })
+  })
 })

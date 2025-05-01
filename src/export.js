@@ -160,6 +160,12 @@ async function exportDataset(opts) {
     assetStreamHandler,
     filterDocumentTypes(options.types),
     options.drafts ? miss.through.obj() : filterDrafts(),
+    miss.through.obj((doc, _enc, callback) => {
+      if (options.filterDocument(doc)) {
+        return callback(null, doc)
+      }
+      return callback()
+    }),
     miss.through.obj(reportDocumentCount),
     stringifyStream(),
   )
