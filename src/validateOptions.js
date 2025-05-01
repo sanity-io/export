@@ -14,6 +14,7 @@ const exportDefaults = {
   compress: true,
   drafts: true,
   assets: true,
+  assetsMap: true,
   raw: false,
   mode: MODE_STREAM,
   maxRetries: DOCUMENT_STREAM_MAX_RETRIES,
@@ -75,6 +76,10 @@ function validateOptions(opts) {
 
   if (options.assetConcurrency && (options.assetConcurrency < 1 || options.assetConcurrency > 24)) {
     throw new Error('`assetConcurrency` must be between 1 and 24')
+  }
+
+  if (typeof assetsMap !== 'undefined' && typeof assetsMap !== 'boolean') {
+    throw new Error('`assetsMap` must be a boolean')
   }
 
   return options

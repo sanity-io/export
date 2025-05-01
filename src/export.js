@@ -220,7 +220,11 @@ async function exportDataset(opts) {
 
       const assetsStream = fs.createWriteStream(assetsPath)
       await pipeAsync(new JsonStreamStringify(assetMap), assetsStream)
-      archive.file(assetsPath, {name: 'assets.json', prefix})
+
+      if (options.assetsMap) {
+        archive.file(assetsPath, {name: 'assets.json', prefix})
+      }
+
       clearInterval(progressInterval)
     } catch (assetErr) {
       clearInterval(progressInterval)
