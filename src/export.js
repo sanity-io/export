@@ -166,6 +166,9 @@ async function exportDataset(opts) {
       }
       return callback()
     }),
+    miss.through.obj((doc, _enc, callback) => {
+      callback(null, options.transformDocument(doc))
+    }),
     miss.through.obj(reportDocumentCount),
     stringifyStream(),
   )

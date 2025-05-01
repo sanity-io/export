@@ -21,6 +21,7 @@ const exportDefaults = {
   maxAssetRetries: ASSET_DOWNLOAD_MAX_RETRIES,
   readTimeout: REQUEST_READ_TIMEOUT,
   filterDocument: () => true,
+  transformDocument: (doc) => doc,
 }
 
 function validateOptions(opts) {
@@ -84,6 +85,13 @@ function validateOptions(opts) {
     typeof options.filterDocument !== 'function'
   ) {
     throw new Error('`filterDocument` must be a function')
+  }
+
+  if (
+    typeof options.transformDocument !== 'undefined' &&
+    typeof options.transformDocument !== 'function'
+  ) {
+    throw new Error('`transformDocument` must be a function')
   }
 
   if (typeof assetsMap !== 'undefined' && typeof assetsMap !== 'boolean') {

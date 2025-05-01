@@ -735,4 +735,39 @@ describe('export', () => {
       documents: [doc],
     })
   })
+
+  test.only('can transform documents', async () => {
+    const port = 43219
+    const doc = {
+      _id: 'this-is-my-jam',
+      title: 'What Was That',
+    }
+
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(
+        JSON.stringify({
+          _id: 'this-is-also-my-jam',
+          title: 'Medicine For Horses',
+        }),
+      )
+      res.write('\n')
+      res.write(JSON.stringify(doc))
+      res.end()
+    })
+    const options = await getOptions({
+      port,
+      transformDocument: ({_id}) => ({_id: _id.toUpperCase()}),
+    })
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 2,
+      outputPath: /out\.tar\.gz$/,
+    })
+
+    await assertContents(result.outputPath, {
+      documents: [{_id: 'THIS-IS-MY-JAM'}, {_id: 'THIS-IS-ALSO-MY-JAM'}],
+    })
+  })
 })
