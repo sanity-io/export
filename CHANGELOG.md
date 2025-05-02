@@ -5,6 +5,15 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.43.0](https://github.com/sanity-io/export/compare/v3.42.2...v3.43.0) (2025-05-02)
+
+### Features
+
+- add `filterDocument` option ([ed235a2](https://github.com/sanity-io/export/commit/ed235a27e573797475cf0bed44f36199cf1d5b3b))
+- add `transformDocument` option ([da37cd4](https://github.com/sanity-io/export/commit/da37cd447383408690ed68732b7a99e8d3bee2fa))
+- add Media Library support ([4c581bc](https://github.com/sanity-io/export/commit/4c581bcfc24913ace0b829a291ad96cf3e0d10d6))
+- make assets map optional ([a2e00a8](https://github.com/sanity-io/export/commit/a2e00a8a24c0f2fcdae5cf2a16c863bf7c179ae1))
+
 ## [3.42.2](https://github.com/sanity-io/export/compare/v3.42.1...v3.42.2) (2025-01-03)
 
 ### Bug Fixes
