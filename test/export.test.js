@@ -89,6 +89,27 @@ describe('export', () => {
     })
   })
 
+  test('includes releases', async () => {
+    const port = 43213
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.end(
+        JSON.stringify({
+          _id: '_.releases.radiant',
+          _type: 'system.release',
+          state: 'active',
+        }),
+      )
+    })
+    const options = await getOptions({port})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 1,
+      outputPath: /out\.tar\.gz$/,
+    })
+  }) 
+
   test('can skip provided types', async () => {
     const port = 43214
     const doc = {

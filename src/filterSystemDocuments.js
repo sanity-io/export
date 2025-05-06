@@ -1,13 +1,13 @@
 const miss = require('mississippi')
 const debug = require('./debug')
 
-const isSystemDocument = (doc) => doc && doc._id && doc._id.indexOf('_.') === 0
+const isSystemDocument = (doc) => doc && doc._id && doc._id.startsWith('_.') && !doc._id.startsWith('_.releases')
 const isCursor = (doc) => doc && !doc._id && doc.nextCursor !== undefined
 
 module.exports = () =>
   miss.through.obj((doc, enc, callback) => {
     if (isSystemDocument(doc)) {
-      debug('%s is a system document, skipping', doc && doc._id)
+      debug('%s is an internal system document, skipping', doc && doc._id)
       return callback()
     }
     if (isCursor(doc)) {
