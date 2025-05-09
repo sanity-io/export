@@ -9,9 +9,7 @@ const JsonStreamStringify = require('json-stream-stringify')
 const AssetHandler = require('./AssetHandler')
 const debug = require('./debug')
 const pipeAsync = require('./util/pipeAsync')
-const filterDocumentTypes = require('./filterDocumentTypes')
-const filterDrafts = require('./filterDrafts')
-const filterSystemDocuments = require('./filterSystemDocuments')
+const filterDocuments = require('./filterDocuments')
 const getDocumentsStream = require('./getDocumentsStream')
 const getDocumentCursorStream = require('./getDocumentCursorStream')
 const logFirstChunk = require('./logFirstChunk')
@@ -156,10 +154,8 @@ async function exportDataset(opts) {
     logFirstChunk(),
     split(tryParseJson),
     rejectOnApiError(),
-    filterSystemDocuments(),
+    filterDocuments(options.drafts),
     assetStreamHandler,
-    filterDocumentTypes(options.types),
-    options.drafts ? miss.through.obj() : filterDrafts(),
     miss.through.obj((doc, _enc, callback) => {
       if (options.filterDocument(doc)) {
         return callback(null, doc)

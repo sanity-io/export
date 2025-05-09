@@ -89,6 +89,28 @@ describe('export', () => {
     })
   })
 
+
+  test('includes releases', async () => {
+    const port = 43213
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.end(
+        JSON.stringify({
+          _id: '_.releases.radiant',
+          _type: 'system.release',
+          state: 'active',
+        }),
+      )
+    })
+    const options = await getOptions({port})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 1,
+      outputPath: /out\.tar\.gz$/,
+    })
+  }) 
+
   test('can skip provided types', async () => {
     const port = 43214
     const doc = {
@@ -768,6 +790,108 @@ describe('export', () => {
 
     await assertContents(result.outputPath, {
       documents: [{_id: 'THIS-IS-MY-JAM'}, {_id: 'THIS-IS-ALSO-MY-JAM'}],
+    })
+  })
+  
+  test('skips version documents when drafts is false', async () => {
+    const port = 43213
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.end(
+        JSON.stringify({
+          _id: 'versions.article-123',
+          _type: 'article',
+          title: 'Version of article',
+        }),
+      )
+    })
+    const options = await getOptions({port, drafts: false})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 0,
+      outputPath: /out\.tar\.gz$/,
+    })
+  })
+
+  test('skips releases when drafts is true', async () => {
+    const port = 43213
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.end(
+        JSON.stringify({
+          _id: '_.releases.radiant',
+          _type: 'system.release',
+          state: 'active',
+        }),
+      )
+    })
+    const options = await getOptions({port, drafts: true})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 0,
+      outputPath: /out\.tar\.gz$/,
+    })
+  })
+
+  test('handles mixed document types correctly', async () => {
+    const port = 43213
+    const regularDoc = {
+      _id: 'regular-doc',
+      _type: 'article',
+      title: 'Regular document',
+    }
+    const draftDoc = {
+      _id: 'drafts.draft-doc',
+      _type: 'article',
+      title: 'Draft document',
+    }
+    const versionDoc = {
+      _id: 'versions.version-doc',
+      _type: 'article',
+      title: 'Version document',
+    }
+    const releaseDoc = {
+      _id: '_.releases.release-doc',
+      _type: 'system.release',
+      state: 'active',
+    }
+
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(JSON.stringify(regularDoc))
+      res.write('\n')
+      res.write(JSON.stringify(draftDoc))
+      res.write('\n')
+      res.write(JSON.stringify(versionDoc))
+      res.write('\n')
+      res.write(JSON.stringify(releaseDoc))
+      res.end()
+    })
+
+    // Test with drafts: false
+    const optionsNoDrafts = await getOptions({port, drafts: false})
+    const resultNoDrafts = await exportDataset(optionsNoDrafts)
+    expect(resultNoDrafts).toMatchObject({
+      assetCount: 0,
+      documentCount: 2,
+      outputPath: /out\.tar\.gz$/,
+    })
+    await assertContents(resultNoDrafts.outputPath, {
+      documents: [regularDoc, releaseDoc],
+    })
+
+    // Test with drafts: true
+    const optionsWithDrafts = await getOptions({port, drafts: true})
+    const resultWithDrafts = await exportDataset(optionsWithDrafts)
+    expect(resultWithDrafts).toMatchObject({
+      assetCount: 0,
+      documentCount: 3,
+      outputPath: /out\.tar\.gz$/,
+    })
+    await assertContents(resultWithDrafts.outputPath, {
+      documents: [regularDoc, draftDoc, versionDoc],
     })
   })
 })
