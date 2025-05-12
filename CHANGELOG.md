@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.44.0](https://github.com/sanity-io/export/compare/v3.43.0...v3.44.0) (2025-05-12)
+
+### Features
+
+- update export for releases ([b6ff6f1](https://github.com/sanity-io/export/commit/b6ff6f17a528e877c4137a22b164f95909833c94))
+
 ## [3.43.0](https://github.com/sanity-io/export/compare/v3.42.2...v3.43.0) (2025-05-02)
 
 ### Features
