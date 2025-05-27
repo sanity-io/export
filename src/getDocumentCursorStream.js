@@ -72,7 +72,13 @@ function startStream(options, nextCursor) {
       : `/media-libraries/${options.mediaLibraryId}/export`,
   )
 
-  const url = `${baseUrl}?nextCursor=${encodeURIComponent(nextCursor)}`
+  const queryParams = [`nextCursor=${encodeURIComponent(nextCursor)}`]
+
+  // Type filtering is only supported for datasets.
+  if (options.types && options.types.length > 0 && options.dataset) {
+    queryParams.push(`types=${options.types.join(',')}`)
+  }
+  const url = `${baseUrl}?${queryParams.join('&')}`
   const token = options.client.config().token
   const headers = {
     'User-Agent': `${pkg.name}@${pkg.version}`,

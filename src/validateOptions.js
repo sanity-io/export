@@ -43,6 +43,10 @@ function validateOptions(opts) {
     )
   }
 
+  if (options.types && !options.dataset) {
+    throw new Error('`options.types` is only supported when exporting from a dataset')
+  }
+
   if (
     typeof options.mode !== 'string' ||
     (options.mode !== MODE_STREAM && options.mode !== MODE_CURSOR)
