@@ -4,11 +4,19 @@ const requestStream = require('./requestStream')
 module.exports = (options) => {
   // Sanity client doesn't handle streams natively since we want to support node/browser
   // with same API. We're just using it here to get hold of URLs and tokens.
-  const url = options.client.getUrl(
+  const baseUrl = options.client.getUrl(
     options.dataset
       ? `/data/export/${options.dataset}`
       : `/media-libraries/${options.mediaLibraryId}/export`,
   )
+  
+  // Type filtering is only supported for datasets.
+  const queryParams = []
+  if (options.types && options.types.length > 0 && options.dataset) {
+    queryParams.push(`types=${options.types.join(',')}`)
+  }
+  
+  const url = queryParams.length > 0? `${baseUrl}?${queryParams.join('&')}`: baseUrl
 
   const token = options.client.config().token
   const headers = {

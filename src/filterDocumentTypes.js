@@ -1,7 +1,7 @@
 const miss = require('mississippi')
 
 module.exports = (allowedTypes) =>
-  allowedTypes
+  allowedTypes && allowedTypes.length > 0
     ? miss.through.obj((doc, enc, callback) => {
         const type = doc && doc._type
         if (allowedTypes.includes(type)) {
