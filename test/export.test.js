@@ -758,7 +758,7 @@ describe('export', () => {
     })
   })
 
-  test.only('can transform documents', async () => {
+  test('can transform documents', async () => {
     const port = 43219
     const doc = {
       _id: 'this-is-my-jam',
