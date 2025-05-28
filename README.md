@@ -18,6 +18,7 @@ exportDataset({
   client: someInstantiatedSanityClientInstance,
 
   // Name of dataset to export
+  // Cannot be combined with `mediaLibraryId`.
   dataset: 'myDataset',
 
   // Path to write tar.gz-archive file to, or `-` for stdout
@@ -47,6 +48,28 @@ exportDataset({
   // Cursor mode might help when dealing with large datasets, but might yield inconsistent results if the dataset is mutated during export.
   // Default: 'stream'
   mode: 'stream',
+
+  // Export data from a media library, instead of a dataset.
+  // Cannot be combined with `dataset`.
+  mediaLibraryId: 'myMediaLibrary',
+
+  // Whether to include the `assets.json` assets map. This file is not necessary when creating a
+  // media library archive.
+  // Caution: customising this option may result in an archive being produced that is impossible to import.
+  // Optional, default: `true`
+  assetsMap: true,
+
+  // A custom filter function for controlling which documents are exported.
+  // Optional, default: `() => true`
+  filterDocument: document => (document.title ?? '').includes('capybara'),
+
+  // A custom transformation function for controlling how each document is exported.
+  // Caution: customising this option may result in an archive being produced that is impossible to import.
+  // Optional, default: `document => document`
+  transformDocument: document => ({
+    ...document,
+    title: document.title ?? 'capybara',
+  }),
 })
 ```
 
