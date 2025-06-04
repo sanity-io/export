@@ -11,12 +11,10 @@ module.exports = (options) => {
   )
   
   // Type filtering is only supported for datasets.
-  const queryParams = []
+  const url = new URL(baseUrl)
   if (options.types && options.types.length > 0 && options.dataset) {
-    queryParams.push(`types=${options.types.join(',')}`)
+    url.searchParams.set('types', options.types.join(','))
   }
-  
-  const url = queryParams.length > 0? `${baseUrl}?${queryParams.join('&')}`: baseUrl
 
   const token = options.client.config().token
   const headers = {
@@ -25,7 +23,7 @@ module.exports = (options) => {
   }
 
   return requestStream({
-    url,
+    url: url.toString(),
     headers,
     maxRetries: options.maxRetries,
     readTimeout: options.readTimeout,

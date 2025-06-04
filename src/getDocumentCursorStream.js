@@ -72,13 +72,13 @@ function startStream(options, nextCursor) {
       : `/media-libraries/${options.mediaLibraryId}/export`,
   )
 
-  const queryParams = [`nextCursor=${encodeURIComponent(nextCursor)}`]
+  const url = new URL(baseUrl)
+  url.searchParams.set('nextCursor', nextCursor)
 
   // Type filtering is only supported for datasets.
   if (options.types && options.types.length > 0 && options.dataset) {
-    queryParams.push(`types=${options.types.join(',')}`)
+    url.searchParams.set('types', options.types.join(','))
   }
-  const url = `${baseUrl}?${queryParams.join('&')}`
   const token = options.client.config().token
   const headers = {
     'User-Agent': `${pkg.name}@${pkg.version}`,
@@ -87,7 +87,7 @@ function startStream(options, nextCursor) {
 
   debug('Starting stream with cursor "%s"', nextCursor)
 
-  return requestStream({url, headers, maxRetries: options.maxRetries}).then((res) => {
+  return requestStream({url: url.toString(), headers, maxRetries: options.maxRetries}).then((res) => {
     debug('Got stream with HTTP %d', res.statusCode)
 
     return res
