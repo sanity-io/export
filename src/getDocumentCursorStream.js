@@ -77,7 +77,7 @@ function startStream(options, nextCursor) {
 
   // Type filtering is only supported for datasets.
   if (options.types && options.types.length > 0 && options.dataset) {
-    url.searchParams.set('types', options.types.join(','))
+    url.searchParams.set('types', options.types.join())
   }
   const token = options.client.config().token
   const headers = {
