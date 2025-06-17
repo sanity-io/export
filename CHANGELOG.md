@@ -5,6 +5,17 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.45.0](https://github.com/sanity-io/export/compare/v3.44.0...v3.45.0) (2025-06-17)
+
+### Features
+
+- **cli:** support exporting documents with specific types ([9e0095a](https://github.com/sanity-io/export/commit/9e0095ad9a5389d2fb048c984e50d12f0fb84583))
+
+### Bug Fixes
+
+- **getDocumentsStream:** use URL object to build url and add unit tests ([8568fd7](https://github.com/sanity-io/export/commit/8568fd798f3269976aeab7ff436f2783b43c5a5e))
+- **url:** remove redundant usage of comma to join url search params ([f48fcb7](https://github.com/sanity-io/export/commit/f48fcb7c0f931febb1ed9d0c524e0adf1572bd18))
+
 ## [3.44.0](https://github.com/sanity-io/export/compare/v3.43.0...v3.44.0) (2025-05-12)
 
 ### Features
