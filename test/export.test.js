@@ -102,14 +102,14 @@ describe('export', () => {
         }),
       )
     })
-    const options = await getOptions({port})
+    const options = await getOptions({port, drafts: false})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
       assetCount: 0,
       documentCount: 1,
       outputPath: /out\.tar\.gz$/,
     })
-  }) 
+  })
 
   test('can skip provided types', async () => {
     const port = 43214
@@ -758,7 +758,7 @@ describe('export', () => {
     })
   })
 
-  test.only('can transform documents', async () => {
+  test('can transform documents', async () => {
     const port = 43219
     const doc = {
       _id: 'this-is-my-jam',
