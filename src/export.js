@@ -10,6 +10,7 @@ const AssetHandler = require('./AssetHandler')
 const debug = require('./debug')
 const pipeAsync = require('./util/pipeAsync')
 const filterDocuments = require('./filterDocuments')
+const filterDocumentTypes = require('./filterDocumentTypes')
 const getDocumentsStream = require('./getDocumentsStream')
 const getDocumentCursorStream = require('./getDocumentCursorStream')
 const logFirstChunk = require('./logFirstChunk')
@@ -155,6 +156,7 @@ async function exportDataset(opts) {
     split(tryParseJson),
     rejectOnApiError(),
     filterDocuments(options.drafts),
+    filterDocumentTypes(options.types),
     assetStreamHandler,
     miss.through.obj((doc, _enc, callback) => {
       if (options.filterDocument(doc)) {
