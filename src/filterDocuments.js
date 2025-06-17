@@ -7,7 +7,7 @@ const isDraftOrVersion = (doc) => doc && doc._id && (
 )
 
 const isSystemDocument = (doc) => doc && doc._id && doc._id.indexOf('_.') === 0
-const isRelease = (doc) => doc && doc._id && doc._id.indexOf('_.releases.') === 0
+const isReleaseDocument = (doc) => doc && doc._id && doc._id.indexOf('_.releases.') === 0
 const isCursor = (doc) => doc && !doc._id && doc.nextCursor !== undefined
 
 module.exports = (drafts) =>
@@ -23,7 +23,7 @@ module.exports = (drafts) =>
     }
 
     if (isSystemDocument(doc)) {
-      if (!drafts && isRelease(doc)) {
+      if (!drafts && isReleaseDocument(doc)) {
         return callback(null, doc)
       }
       debug('%s is a system document, skipping', doc && doc._id)
@@ -31,4 +31,4 @@ module.exports = (drafts) =>
     }
 
     return callback(null, doc)
-  }) 
+  })
