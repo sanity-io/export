@@ -5,6 +5,14 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.45.1](https://github.com/sanity-io/export/compare/v3.45.0...v3.45.1) (2025-06-25)
+
+### Bug Fixes
+
+- **content-releases:** fix failing test that was missed due to test run bug where only one test was being run in CI ([7e6fefd](https://github.com/sanity-io/export/commit/7e6fefdc9f161150ba5cee7bbee59fb865bce696))
+- **document-types:** use filter document types middleware to filter away document types on client side ([2199002](https://github.com/sanity-io/export/commit/219900212b3ebf21cfd918d1833eae09f30f60ba))
+- remove erroneous test `only` modifier ([1f1a9a7](https://github.com/sanity-io/export/commit/1f1a9a7474c09dd040774d82a70ff67e66f46cad))
+
 ## [3.45.0](https://github.com/sanity-io/export/compare/v3.44.0...v3.45.0) (2025-06-17)
 
 ### Features
