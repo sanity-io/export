@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.45.2](https://github.com/sanity-io/export/compare/v3.45.1...v3.45.2) (2025-06-27)
+
+### Bug Fixes
+
+- **types:** allow types on all the resource types ([4dea757](https://github.com/sanity-io/export/commit/4dea75727ced23404e91c17e129c238d562bc402))
+
 ## [3.45.1](https://github.com/sanity-io/export/compare/v3.45.0...v3.45.1) (2025-06-25)
 
 ### Bug Fixes
