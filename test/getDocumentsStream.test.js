@@ -62,11 +62,11 @@ describe('getDocumentsStream', () => {
       })
     })
 
-    test('constructs URL for media library export without types parameter', () => {
+    test('constructs URL for media library export with types parameter', () => {
       const options = {
         mediaLibraryId: 'media-lib-123',
         client: getMockClient(),
-        types: ['article', 'author'], // Should be ignored for media library
+        types: ['article', 'author'],
         maxRetries: 2,
         readTimeout: 30000,
       }
@@ -74,7 +74,7 @@ describe('getDocumentsStream', () => {
       getDocumentsStreamTest(options)
 
       expect(mockRequestStream).toHaveBeenCalledWith({
-        url: 'https://projectid.api.sanity.io/v2021-06-07/media-libraries/media-lib-123/export',
+        url: 'https://projectid.api.sanity.io/v2021-06-07/media-libraries/media-lib-123/export?types=article%2Cauthor',
         headers: {
           'User-Agent': `${pkg.name}@${pkg.version}`,
           Authorization: 'Bearer skMockToken',
