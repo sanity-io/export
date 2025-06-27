@@ -10,9 +10,8 @@ module.exports = (options) => {
       : `/media-libraries/${options.mediaLibraryId}/export`,
   )
   
-  // Type filtering is only supported for datasets.
   const url = new URL(baseUrl)
-  if (options.types && options.types.length > 0 && options.dataset) {
+  if (options.types && options.types.length > 0 ) {
     url.searchParams.set('types', options.types.join())
   }
 
