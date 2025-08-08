@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.45.3](https://github.com/sanity-io/export/compare/v3.45.2...v3.45.3) (2025-08-08)
+
+### Bug Fixes
+
+- allow `types` option, regardless of whether `dataset` option is provided ([#31](https://github.com/sanity-io/export/issues/31)) ([2f87281](https://github.com/sanity-io/export/commit/2f87281ec2bfcac77396664f65048f401690b7b6))
+
 ## [3.45.2](https://github.com/sanity-io/export/compare/v3.45.1...v3.45.2) (2025-06-27)
 
 ### Bug Fixes
