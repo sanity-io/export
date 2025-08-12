@@ -16,14 +16,14 @@ jobs:
       id-token: write # to enable use of OIDC for npm provenance
     steps:
       - name: Create app token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         id: app-token
         with:
           app-id: ${{ secrets.ECOSPARK_APP_ID }}
           private-key: ${{ secrets.ECOSPARK_APP_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Need all history to analyze commits since last release
           fetch-depth: 0
