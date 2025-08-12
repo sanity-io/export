@@ -89,7 +89,6 @@ describe('export', () => {
     })
   })
 
-
   test('includes releases', async () => {
     const port = 43213
     server = await getServer(port, (req, res) => {
@@ -792,7 +791,7 @@ describe('export', () => {
       documents: [{_id: 'THIS-IS-MY-JAM'}, {_id: 'THIS-IS-ALSO-MY-JAM'}],
     })
   })
-  
+
   test('skips version documents when drafts is false', async () => {
     const port = 43213
     server = await getServer(port, (req, res) => {

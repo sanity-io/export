@@ -9,9 +9,9 @@ module.exports = (options) => {
       ? `/data/export/${options.dataset}`
       : `/media-libraries/${options.mediaLibraryId}/export`,
   )
-  
+
   const url = new URL(baseUrl)
-  if (options.types && options.types.length > 0 ) {
+  if (options.types && options.types.length > 0) {
     url.searchParams.set('types', options.types.join())
   }
 

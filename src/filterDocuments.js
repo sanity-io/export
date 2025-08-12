@@ -1,10 +1,8 @@
 const miss = require('mississippi')
 const debug = require('./debug')
 
-const isDraftOrVersion = (doc) => doc && doc._id && (
-  doc._id.indexOf('drafts.') === 0 ||
-  doc._id.indexOf('versions.') === 0
-)
+const isDraftOrVersion = (doc) =>
+  doc && doc._id && (doc._id.indexOf('drafts.') === 0 || doc._id.indexOf('versions.') === 0)
 
 const isSystemDocument = (doc) => doc && doc._id && doc._id.indexOf('_.') === 0
 const isReleaseDocument = (doc) => doc && doc._id && doc._id.indexOf('_.releases.') === 0

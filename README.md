@@ -61,12 +61,12 @@ exportDataset({
 
   // A custom filter function for controlling which documents are exported.
   // Optional, default: `() => true`
-  filterDocument: document => (document.title ?? '').includes('capybara'),
+  filterDocument: (document) => (document.title ?? '').includes('capybara'),
 
   // A custom transformation function for controlling how each document is exported.
   // Caution: customising this option may result in an archive being produced that is impossible to import.
   // Optional, default: `document => document`
-  transformDocument: document => ({
+  transformDocument: (document) => ({
     ...document,
     title: document.title ?? 'capybara',
   }),

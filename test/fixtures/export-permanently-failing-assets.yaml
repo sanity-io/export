@@ -37,4 +37,4 @@ apiMocks:
       - code: 500
       - code: 500 # We only retry upto 10 times.
 
-error: "Referenced asset URL \"https://cdn.sanity.io/images/publisher-3-524x524.jpg\" returned HTTP 500"
+error: 'Referenced asset URL "https://cdn.sanity.io/images/publisher-3-524x524.jpg" returned HTTP 500'
