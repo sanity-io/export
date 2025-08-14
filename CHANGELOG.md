@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.0.1](https://github.com/sanity-io/export/compare/v4.0.0...v4.0.1) (2025-08-14)
+
+### Bug Fixes
+
+- allow v20 in node engines ([354001b](https://github.com/sanity-io/export/commit/354001b4fb94eae78941d513de1cfe0d5e382d44))
+
 ## [4.0.0](https://github.com/sanity-io/export/compare/v3.45.3...v4.0.0) (2025-08-12)
 
 ### ⚠ BREAKING CHANGES
