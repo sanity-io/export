@@ -1,4 +1,4 @@
-import crypto from 'node:crypto'
+import {createHash} from 'node:crypto'
 import {createWriteStream, mkdirSync} from 'node:fs'
 import path from 'node:path'
 import {format as formatUrl, parse as parseUrl} from 'node:url'
@@ -384,8 +384,8 @@ function generateFilename(assetId) {
 
 function writeHashedStream(filePath, stream) {
   let size = 0
-  const md5 = crypto.createHash('md5')
-  const sha1 = crypto.createHash('sha1')
+  const md5 = createHash('md5')
+  const sha1 = createHash('sha1')
 
   const hasher = miss.through((chunk, enc, cb) => {
     size += chunk.length
