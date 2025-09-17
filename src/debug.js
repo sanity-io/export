@@ -1,1 +1,3 @@
-module.exports = require('debug')('sanity:export')
+import debugIt from 'debug'
+
+export const debug = debugIt('sanity:export')

@@ -1,8 +1,8 @@
-const miss = require('mississippi')
+import {throughObj} from './util/streamHelpers.js'
 
-module.exports = (allowedTypes) =>
+export const filterDocumentTypes = (allowedTypes) =>
   allowedTypes && allowedTypes.length > 0
-    ? miss.through.obj((doc, enc, callback) => {
+    ? throughObj((doc, enc, callback) => {
         const type = doc && doc._type
         if (allowedTypes.includes(type)) {
           callback(null, doc)
@@ -11,4 +11,4 @@ module.exports = (allowedTypes) =>
 
         callback()
       })
-    : miss.through.obj()
+    : throughObj((doc, enc, callback) => callback(null, doc))

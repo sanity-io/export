@@ -1,4 +1,4 @@
-const miss = require('mississippi')
+import {throughObj} from './util/streamHelpers.js'
 
-module.exports = () =>
-  miss.through.obj((doc, enc, callback) => callback(null, `${JSON.stringify(doc)}\n`))
+export const stringifyStream = () =>
+  throughObj((doc, enc, callback) => callback(null, `${JSON.stringify(doc)}\n`))

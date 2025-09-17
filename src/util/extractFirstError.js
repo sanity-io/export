@@ -1,4 +1,4 @@
-exports.extractFirstError = function extractFirstError(err) {
+export function extractFirstError(err) {
   if (
     // eslint-disable-next-line no-undef
     ((typeof AggregateError !== 'undefined' && err instanceof AggregateError) ||

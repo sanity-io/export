@@ -1,15 +1,13 @@
-const os = require('os')
-const {join: joinPath, dirname} = require('path')
-const {readdir, readFile} = require('fs/promises')
-const tar = require('tar')
-const stringToStream = require('string-to-stream')
-const {
-  expect,
-  jest: {fn: jestFn},
-} = require('@jest/globals')
-const AssetHandler = require('../../src/AssetHandler')
-const fs = require('fs')
-const path = require('path')
+import fs from 'node:fs'
+import {readdir, readFile} from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import {dirname, join as joinPath} from 'node:path'
+import {Readable} from 'node:stream'
+import * as tar from 'tar'
+import {expect, vi} from 'vitest'
+
+import {AssetHandler} from '../../src/AssetHandler.js'
 
 const getMockClient = () => ({
   config: () => ({projectId: '__fixtures__', dataset: '__test__'}),
@@ -17,7 +15,7 @@ const getMockClient = () => ({
     query.endsWith('._type') ? `sanity.imageAsset` : `http://localhost:32323/${params.id}.jpg`,
 })
 
-const getMockArchive = () => ({append: jestFn(), abort: jestFn()})
+const getMockArchive = () => ({append: vi.fn(), abort: vi.fn()})
 
 const getMockQueue = () => {
   const ops = []
@@ -28,7 +26,7 @@ const getMockQueue = () => {
   }
 }
 
-const arrayToStream = (docs) => stringToStream(docs.map((doc) => JSON.stringify(doc)).join('\n'))
+const arrayToStream = (docs) => Readable.from([docs.map((doc) => JSON.stringify(doc)).join('\n')])
 
 const ndjsonToArray = (ndjson) =>
   ndjson
@@ -142,13 +140,13 @@ async function readJson(filePath) {
     })
 }
 
-module.exports = {
+export {
+  arrayToStream,
   assertContents,
   getAssetHandler,
-  getMockClient,
   getMockArchive,
+  getMockClient,
   getMockQueue,
-  arrayToStream,
   ndjsonToArray,
   untarExportedFile,
 }

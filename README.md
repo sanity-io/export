@@ -11,7 +11,7 @@ npm install --save @sanity/export
 ## Usage
 
 ```js
-const exportDataset = require('@sanity/export')
+import {exportDataset} from '@sanity/export'
 
 exportDataset({
   // Instance of @sanity/client configured to correct project ID and dataset

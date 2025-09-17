@@ -1,21 +1,23 @@
-const {describe, expect, test, beforeEach} = require('@jest/globals')
+import {beforeEach, describe, expect, test, vi} from 'vitest'
+
+// Mock needs to be hoisted - define mock factory without top-level variables
+vi.mock('../src/requestStream.js', () => ({
+  requestStream: vi.fn(),
+}))
+
+import {getDocumentsStream} from '../src/getDocumentsStream.js'
+import {getUserAgent} from '../src/getUserAgent.js'
+import {requestStream} from '../src/requestStream.js'
 
 const getMockClient = () => ({
   getUrl: (path) => `https://projectid.api.sanity.io/v2021-06-07${path}`,
   config: () => ({token: 'skMockToken', projectId: 'projectid'}),
 })
 
-// Mock the requestStream module
-const mockRequestStream = jest.fn()
-jest.mock('../src/requestStream', () => mockRequestStream)
-
-const getDocumentsStreamTest = require('../src/getDocumentsStream')
-const pkg = require('../package.json')
-
 describe('getDocumentsStream', () => {
   beforeEach(() => {
-    mockRequestStream.mockClear()
-    mockRequestStream.mockResolvedValue({})
+    vi.clearAllMocks()
+    requestStream.mockResolvedValue({})
   })
 
   describe('URL construction', () => {
@@ -27,12 +29,12 @@ describe('getDocumentsStream', () => {
         readTimeout: 30000,
       }
 
-      getDocumentsStreamTest(options)
+      getDocumentsStream(options)
 
-      expect(mockRequestStream).toHaveBeenCalledWith({
+      expect(requestStream).toHaveBeenCalledWith({
         url: 'https://projectid.api.sanity.io/v2021-06-07/data/export/production',
         headers: {
-          'User-Agent': `${pkg.name}@${pkg.version}`,
+          'User-Agent': getUserAgent(),
           Authorization: 'Bearer skMockToken',
         },
         maxRetries: 2,
@@ -49,12 +51,12 @@ describe('getDocumentsStream', () => {
         readTimeout: 30000,
       }
 
-      getDocumentsStreamTest(options)
+      getDocumentsStream(options)
 
-      expect(mockRequestStream).toHaveBeenCalledWith({
+      expect(requestStream).toHaveBeenCalledWith({
         url: 'https://projectid.api.sanity.io/v2021-06-07/data/export/production?types=article%2Cauthor',
         headers: {
-          'User-Agent': `${pkg.name}@${pkg.version}`,
+          'User-Agent': getUserAgent(),
           Authorization: 'Bearer skMockToken',
         },
         maxRetries: 2,
@@ -71,12 +73,12 @@ describe('getDocumentsStream', () => {
         readTimeout: 30000,
       }
 
-      getDocumentsStreamTest(options)
+      getDocumentsStream(options)
 
-      expect(mockRequestStream).toHaveBeenCalledWith({
+      expect(requestStream).toHaveBeenCalledWith({
         url: 'https://projectid.api.sanity.io/v2021-06-07/media-libraries/media-lib-123/export?types=article%2Cauthor',
         headers: {
-          'User-Agent': `${pkg.name}@${pkg.version}`,
+          'User-Agent': getUserAgent(),
           Authorization: 'Bearer skMockToken',
         },
         maxRetries: 2,
@@ -93,12 +95,12 @@ describe('getDocumentsStream', () => {
         readTimeout: 30000,
       }
 
-      getDocumentsStreamTest(options)
+      getDocumentsStream(options)
 
-      expect(mockRequestStream).toHaveBeenCalledWith({
+      expect(requestStream).toHaveBeenCalledWith({
         url: 'https://projectid.api.sanity.io/v2021-06-07/data/export/production?types=article%2Bspecial%2Cauthor%26category',
         headers: {
-          'User-Agent': `${pkg.name}@${pkg.version}`,
+          'User-Agent': getUserAgent(),
           Authorization: 'Bearer skMockToken',
         },
         maxRetries: 2,
