@@ -3,8 +3,7 @@ import {readdir, readFile} from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import {dirname, join as joinPath} from 'node:path'
-
-import stringToStream from 'string-to-stream'
+import {Readable} from 'node:stream'
 import * as tar from 'tar'
 import {expect, vi} from 'vitest'
 
@@ -27,7 +26,7 @@ const getMockQueue = () => {
   }
 }
 
-const arrayToStream = (docs) => stringToStream(docs.map((doc) => JSON.stringify(doc)).join('\n'))
+const arrayToStream = (docs) => Readable.from([docs.map((doc) => JSON.stringify(doc)).join('\n')])
 
 const ndjsonToArray = (ndjson) =>
   ndjson

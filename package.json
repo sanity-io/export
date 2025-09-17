@@ -50,7 +50,6 @@
     "nock": "^13.5.4",
     "prettier": "^3.6.2",
     "prettier-plugin-packagejson": "^2.5.19",
-    "string-to-stream": "^1.1.0",
     "tar": "^7.4.3",
     "vitest": "^3.2.4",
     "yaml": "^2.8.1"
