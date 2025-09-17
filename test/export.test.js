@@ -1,17 +1,22 @@
-const os = require('os')
-const http = require('http')
-const {join: joinPath} = require('path')
-const {createReadStream} = require('fs')
-const {mkdir, rm} = require('fs/promises')
+import {createReadStream} from 'node:fs'
+import {mkdir, rm} from 'node:fs/promises'
+import http from 'node:http'
+import os from 'node:os'
+import path, {join as joinPath} from 'node:path'
+import {fileURLToPath} from 'node:url'
 
-const exportDataset = require('../src/export')
-const {MODE_CURSOR} = require('../src/constants')
-const {assertContents} = require('./helpers')
+import {afterAll, afterEach, describe, expect, test} from 'vitest'
+
+import {MODE_CURSOR} from '../src/constants.js'
+import {exportDataset} from '../src/export.js'
+import {assertContents} from './helpers/index.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const OUTPUT_ROOT_DIR = joinPath(os.tmpdir(), 'sanity-export-tests')
 
 const getMockClient = (port) => ({
-  getUrl: (path) => `http://localhost:${port}${path}`,
+  getUrl: (urlPath) => `http://localhost:${port}${urlPath}`,
   config: () => ({token: 'skSomeToken', projectId: 'projectId'}),
 })
 

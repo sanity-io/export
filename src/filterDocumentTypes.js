@@ -1,6 +1,6 @@
-const miss = require('mississippi')
+import miss from 'mississippi'
 
-module.exports = (allowedTypes) =>
+export const filterDocumentTypes = (allowedTypes) =>
   allowedTypes && allowedTypes.length > 0
     ? miss.through.obj((doc, enc, callback) => {
         const type = doc && doc._type

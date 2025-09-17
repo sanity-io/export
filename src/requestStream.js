@@ -1,8 +1,9 @@
-const {getIt} = require('get-it')
-const {keepAlive, promise} = require('get-it/middleware')
-const debug = require('./debug')
-const {extractFirstError} = require('./util/extractFirstError')
-const {DOCUMENT_STREAM_MAX_RETRIES, REQUEST_READ_TIMEOUT} = require('./constants')
+import {getIt} from 'get-it'
+import {keepAlive, promise} from 'get-it/middleware'
+
+import {DOCUMENT_STREAM_MAX_RETRIES, REQUEST_READ_TIMEOUT} from './constants.js'
+import {debug} from './debug.js'
+import {extractFirstError} from './util/extractFirstError.js'
 
 const request = getIt([keepAlive(), promise({onlyBody: true})])
 
@@ -14,7 +15,7 @@ function delay(ms) {
 }
 
 /* eslint-disable no-await-in-loop, max-depth */
-module.exports = async (options) => {
+export const requestStream = async (options) => {
   const maxRetries =
     typeof options.maxRetries === 'number' ? options.maxRetries : DOCUMENT_STREAM_MAX_RETRIES
 

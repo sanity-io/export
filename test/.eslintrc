@@ -1,12 +1,3 @@
 {
-  "env": {"node": true},
-  "globals": {
-    "describe": "readonly",
-    "test": "readonly", 
-    "expect": "readonly",
-    "beforeEach": "readonly",
-    "afterEach": "readonly",
-    "afterAll": "readonly",
-    "vi": "readonly"
-  }
+  "env": {"node": true}
 }

@@ -1,29 +1,31 @@
-const fs = require('fs')
-const os = require('os')
-const path = require('path')
-const zlib = require('zlib')
-const archiver = require('archiver')
-const miss = require('mississippi')
-const split = require('split2')
-const JsonStreamStringify = require('json-stream-stringify')
-const AssetHandler = require('./AssetHandler')
-const debug = require('./debug')
-const pipeAsync = require('./util/pipeAsync')
-const filterDocuments = require('./filterDocuments')
-const filterDocumentTypes = require('./filterDocumentTypes')
-const getDocumentsStream = require('./getDocumentsStream')
-const getDocumentCursorStream = require('./getDocumentCursorStream')
-const logFirstChunk = require('./logFirstChunk')
-const rejectOnApiError = require('./rejectOnApiError')
-const stringifyStream = require('./stringifyStream')
-const tryParseJson = require('./tryParseJson')
-const rimraf = require('./util/rimraf')
-const validateOptions = require('./validateOptions')
-const {DOCUMENT_STREAM_DEBUG_INTERVAL, MODE_CURSOR, MODE_STREAM} = require('./constants')
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import zlib from 'node:zlib'
+
+import archiver from 'archiver'
+import JsonStreamStringify from 'json-stream-stringify'
+import miss from 'mississippi'
+import {rimraf} from 'rimraf'
+import split from 'split2'
+
+import {AssetHandler} from './AssetHandler.js'
+import {DOCUMENT_STREAM_DEBUG_INTERVAL, MODE_CURSOR, MODE_STREAM} from './constants.js'
+import {debug} from './debug.js'
+import {filterDocuments} from './filterDocuments.js'
+import {filterDocumentTypes} from './filterDocumentTypes.js'
+import {getDocumentCursorStream} from './getDocumentCursorStream.js'
+import {getDocumentsStream} from './getDocumentsStream.js'
+import {logFirstChunk} from './logFirstChunk.js'
+import {rejectOnApiError} from './rejectOnApiError.js'
+import {stringifyStream} from './stringifyStream.js'
+import {tryParseJson} from './tryParseJson.js'
+import {pipeAsync} from './util/pipeAsync.js'
+import {validateOptions} from './validateOptions.js'
 
 const noop = () => null
 
-async function exportDataset(opts) {
+export async function exportDataset(opts) {
   const options = validateOptions(opts)
   const onProgress = options.onProgress || noop
   const archive = archiver('tar', {
@@ -293,5 +295,3 @@ function isWritableStream(val) {
     typeof val._writableState === 'object'
   )
 }
-
-module.exports = exportDataset

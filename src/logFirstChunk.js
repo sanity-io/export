@@ -1,7 +1,8 @@
-const miss = require('mississippi')
-const debug = require('./debug')
+import miss from 'mississippi'
 
-module.exports = () => {
+import {debug} from './debug.js'
+
+export const logFirstChunk = () => {
   let firstChunk = true
   return miss.through((chunk, enc, callback) => {
     if (firstChunk) {

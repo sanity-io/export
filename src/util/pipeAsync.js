@@ -1,6 +1,6 @@
-const miss = require('mississippi')
+import miss from 'mississippi'
 
-module.exports = async (readable, writable) => {
+export const pipeAsync = async (readable, writable) => {
   return new Promise((resolve, reject) => {
     try {
       miss.pipe(readable, writable, (jsonErr) => {

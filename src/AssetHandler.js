@@ -1,21 +1,22 @@
-const crypto = require('crypto')
-const {mkdirSync, createWriteStream} = require('fs')
-const path = require('path')
-const {parse: parseUrl, format: formatUrl} = require('url')
-const {omit} = require('lodash')
-const miss = require('mississippi')
-const PQueue = require('p-queue')
-const pkg = require('../package.json')
-const debug = require('./debug')
-const requestStream = require('./requestStream')
-const rimraf = require('./util/rimraf')
-const {ASSET_DOWNLOAD_MAX_RETRIES, ASSET_DOWNLOAD_CONCURRENCY} = require('./constants')
+import crypto from 'node:crypto'
+import {createWriteStream, mkdirSync} from 'node:fs'
+import path from 'node:path'
+import {format as formatUrl, parse as parseUrl} from 'node:url'
+
+import miss from 'mississippi'
+import PQueue from 'p-queue'
+import {rimraf} from 'rimraf'
+
+import {ASSET_DOWNLOAD_CONCURRENCY, ASSET_DOWNLOAD_MAX_RETRIES} from './constants.js'
+import {debug} from './debug.js'
+import {getUserAgent} from './getUserAgent.js'
+import {requestStream} from './requestStream.js'
 
 const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
 const ACTION_REMOVE = 'remove'
 const ACTION_REWRITE = 'rewrite'
 
-class AssetHandler {
+export class AssetHandler {
   constructor(options) {
     const concurrency = options.concurrency || ASSET_DOWNLOAD_CONCURRENCY
     debug('Using asset download concurrency of %d', concurrency)
@@ -172,7 +173,7 @@ class AssetHandler {
 
   getAssetRequestOptions(assetDoc) {
     const token = this.client.config().token
-    const headers = {'User-Agent': `${pkg.name}@${pkg.version}`}
+    const headers = {'User-Agent': getUserAgent()}
     const isImage = assetDoc._type === 'sanity.imageAsset'
 
     const url = parseUrl(assetDoc.url, true)
@@ -435,4 +436,12 @@ function tryGetErrorFromStream(stream) {
   })
 }
 
-module.exports = AssetHandler
+function omit(obj, keys) {
+  const copy = {}
+  Object.entries(obj).forEach(([key, value]) => {
+    if (!keys.includes(key)) {
+      copy[key] = value
+    }
+  })
+  return copy
+}

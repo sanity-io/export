@@ -1,13 +1,13 @@
-const {Transform} = require('node:stream')
+import {Transform} from 'node:stream'
 
-const pkg = require('../package.json')
-const debug = require('./debug')
-const requestStream = require('./requestStream')
+import {debug} from './debug.js'
+import {getUserAgent} from './getUserAgent.js'
+import {requestStream} from './requestStream.js'
 
 // same regex as split2 is using by default: https://github.com/mcollina/split2/blob/53432f54bd5bf422bd55d91d38f898b6c9496fc1/index.js#L86
 const splitRegex = /\r?\n/
 
-module.exports = async (options) => {
+export const getDocumentCursorStream = async (options) => {
   let streamsInflight = 0
   function decrementInflight(stream) {
     streamsInflight--
@@ -80,7 +80,7 @@ function startStream(options, nextCursor) {
   }
   const token = options.client.config().token
   const headers = {
-    'User-Agent': `${pkg.name}@${pkg.version}`,
+    'User-Agent': getUserAgent(),
     ...(token ? {Authorization: `Bearer ${token}`} : {}),
   }
 

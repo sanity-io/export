@@ -4,29 +4,31 @@ This file contains integration tests for the exportDataset function and are base
   exportDataset function and a mocked backend API with disabled network requests.
 */
 
-const exportDataset = require('../src/export')
-const fs = require('fs/promises')
-const {readdirSync, readFileSync} = require('fs') // TODO: switch to fs/promises
-const nock = require('nock')
-const path = require('path')
-const rimraf = require('../src/util/rimraf')
-const sanity = require('@sanity/client')
-const yaml = require('yaml')
-const {newTestRunId, withTmpDir} = require('./helpers/suite')
-const {untarExportedFile, ndjsonToArray} = require('./helpers')
+import {mkdtemp, readdir, readFile, stat} from 'node:fs/promises'
+import path from 'node:path'
 
-const fixturesDirectory = path.join(__dirname, 'fixtures')
+import {createClient} from '@sanity/client'
+import nock from 'nock'
+import {rimraf} from 'rimraf'
+import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
+import yaml from 'yaml'
+
+import {exportDataset} from '../src/export.js'
+import {ndjsonToArray, untarExportedFile} from './helpers/index.js'
+import {newTestRunId, withTmpDir} from './helpers/suite.js'
+
+const fixturesDirectory = path.join(import.meta.dirname, 'fixtures')
 
 const expectExportSuccess = async (exportDir, exportFilePath) => {
-  const stats = await fs.stat(exportFilePath)
+  const stats = await stat(exportFilePath)
   expect(stats.size).toBeGreaterThan(0)
 
   const extractedDir = await untarExportedFile(exportDir, exportFilePath)
 
-  const dataFile = await fs.readFile(`${extractedDir}/data.ndjson`, 'utf8')
+  const dataFile = await readFile(`${extractedDir}/data.ndjson`, 'utf8')
   expect(ndjsonToArray(dataFile)).toMatchSnapshot()
 
-  const assetsFile = await fs.readFile(`${extractedDir}/assets.json`, 'utf8')
+  const assetsFile = await readFile(`${extractedDir}/assets.json`, 'utf8')
   expect(JSON.parse(assetsFile)).toMatchSnapshot()
 }
 
@@ -37,17 +39,17 @@ const setupNock = async ({url, query, response}) => {
 
   let body
   if (response.bodyFromFile === true) {
-    body = await fs.readFile(path.join(fixturesDirectory, response.bodyFromFile))
+    body = await readFile(path.join(fixturesDirectory, response.bodyFromFile))
   } else {
     body = response.body
   }
   mockedApi.reply(response.code ? response.code : 200, body)
 }
 
-describe('export integration tests', () => {
+describe('export integration tests', async () => {
   let testRunPath
   beforeAll(async () => {
-    testRunPath = await fs.mkdtemp(path.join(__dirname, `testrun_${newTestRunId()}`))
+    testRunPath = await mkdtemp(path.join(import.meta.dirname, `testrun_${newTestRunId()}`))
   })
 
   afterAll(async () => {
@@ -61,12 +63,13 @@ describe('export integration tests', () => {
     return path.parse(filename).name.replace(/-_/g, ' ')
   }
 
-  const testFiles = readdirSync(fixturesDirectory).filter((file) => file.endsWith('.yaml'))
-  testFiles.forEach((file) => {
+  const testFiles = (await readdir(fixturesDirectory)).filter((file) => file.endsWith('.yaml'))
+  for (const file of testFiles) {
     const fullPath = path.join(fixturesDirectory, file)
-    const fileContents = readFileSync(fullPath, 'utf8')
+    const fileContents = await readFile(fullPath, 'utf8')
     const testData = yaml.parse(fileContents)
 
+    // eslint-disable-next-line no-loop-func
     test(prettyTestName(file), async () => {
       // eslint-disable-next-line max-nested-callbacks
       await withTmpDir(testRunPath, async (exportDir) => {
@@ -77,7 +80,7 @@ describe('export integration tests', () => {
           }
         }
 
-        const client = sanity.createClient({
+        const client = createClient({
           projectId: 'h5hc8cgs',
           dataset: 'production',
           useCdn: false,
@@ -106,5 +109,5 @@ describe('export integration tests', () => {
         expect(nock.isDone()).toBeTruthy()
       })
     })
-  })
+  }
 })

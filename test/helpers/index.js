@@ -1,11 +1,14 @@
-const os = require('os')
-const {join: joinPath, dirname} = require('path')
-const {readdir, readFile} = require('fs/promises')
-const tar = require('tar')
-const stringToStream = require('string-to-stream')
-const AssetHandler = require('../../src/AssetHandler')
-const fs = require('fs')
-const path = require('path')
+import fs from 'node:fs'
+import {readdir, readFile} from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import {dirname, join as joinPath} from 'node:path'
+
+import stringToStream from 'string-to-stream'
+import * as tar from 'tar'
+import {expect, vi} from 'vitest'
+
+import {AssetHandler} from '../../src/AssetHandler.js'
 
 const getMockClient = () => ({
   config: () => ({projectId: '__fixtures__', dataset: '__test__'}),
@@ -138,13 +141,13 @@ async function readJson(filePath) {
     })
 }
 
-module.exports = {
+export {
+  arrayToStream,
   assertContents,
   getAssetHandler,
-  getMockClient,
   getMockArchive,
+  getMockClient,
   getMockQueue,
-  arrayToStream,
   ndjsonToArray,
   untarExportedFile,
 }

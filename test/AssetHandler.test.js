@@ -1,9 +1,12 @@
-const os = require('os')
-const path = require('path')
-const miss = require('mississippi')
-const split = require('split2')
-const rimraf = require('../src/util/rimraf')
-const {getAssetHandler, arrayToStream} = require('./helpers')
+import os from 'node:os'
+import path from 'node:path'
+
+import miss from 'mississippi'
+import {rimraf} from 'rimraf'
+import split from 'split2'
+import {afterAll, describe, expect, test} from 'vitest'
+
+import {arrayToStream, getAssetHandler} from './helpers/index.js'
 
 const docById = (docs, id) => docs.find((doc) => doc._id === id)
 

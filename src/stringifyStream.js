@@ -1,4 +1,4 @@
-const miss = require('mississippi')
+import miss from 'mississippi'
 
-module.exports = () =>
+export const stringifyStream = () =>
   miss.through.obj((doc, enc, callback) => callback(null, `${JSON.stringify(doc)}\n`))

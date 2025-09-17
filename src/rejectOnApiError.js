@@ -1,6 +1,6 @@
-const miss = require('mississippi')
+import miss from 'mississippi'
 
-module.exports = () =>
+export const rejectOnApiError = () =>
   miss.through.obj((doc, enc, callback) => {
     // check if the document passed contains a document attribtue first, and return early.
     if (doc._id) {

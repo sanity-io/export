@@ -1,4 +1,4 @@
-const {createSafeJsonParser} = require('@sanity/util/createSafeJsonParser')
+import {createSafeJsonParser} from '@sanity/util/createSafeJsonParser'
 
 /**
  * Safe JSON parser that is able to handle lines interrupted by an error object.
@@ -8,6 +8,6 @@ const {createSafeJsonParser} = require('@sanity/util/createSafeJsonParser')
  * @internal
  * @see {@link https://github.com/sanity-io/sanity/pull/1787 | Initial pull request}
  */
-module.exports = createSafeJsonParser({
+export const tryParseJson = createSafeJsonParser({
   errorLabel: 'Error streaming dataset',
 })
