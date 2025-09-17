@@ -32,18 +32,16 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@sanity/client": "^7.8.2",
     "@sanity/util": "^4.3.0",
-    "archiver": "^7.0.0",
+    "archiver": "^7.0.1",
     "debug": "^4.3.4",
     "get-it": "^8.6.10",
     "json-stream-stringify": "^2.0.2",
-    "p-queue": "^2.3.0",
-    "rimraf": "^6.0.1",
-    "tar": "^7.0.1",
-    "yaml": "^2.4.2"
+    "p-queue": "^8.1.1",
+    "rimraf": "^6.0.1"
   },
   "devDependencies": {
+    "@sanity/client": "^7.8.2",
     "@sanity/semantic-release-preset": "^5.0.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
@@ -53,8 +51,9 @@
     "prettier": "^3.6.2",
     "prettier-plugin-packagejson": "^2.5.19",
     "string-to-stream": "^1.1.0",
-    "tar": "^7.0.1",
-    "vitest": "^3.2.4"
+    "tar": "^7.4.3",
+    "vitest": "^3.2.4",
+    "yaml": "^2.8.1"
   },
   "engines": {
     "node": ">=20.19 <22 || >=22.12"
