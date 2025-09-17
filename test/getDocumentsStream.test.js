@@ -1,13 +1,11 @@
-const {describe, expect, test, beforeEach} = require('@jest/globals')
+// Mock needs to be hoisted
+const mockRequestStream = vi.fn()
+vi.mock('../src/requestStream', () => mockRequestStream)
 
 const getMockClient = () => ({
   getUrl: (path) => `https://projectid.api.sanity.io/v2021-06-07${path}`,
   config: () => ({token: 'skMockToken', projectId: 'projectid'}),
 })
-
-// Mock the requestStream module
-const mockRequestStream = jest.fn()
-jest.mock('../src/requestStream', () => mockRequestStream)
 
 const getDocumentsStreamTest = require('../src/getDocumentsStream')
 const pkg = require('../package.json')

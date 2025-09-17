@@ -1,6 +1,5 @@
 const os = require('os')
 const path = require('path')
-const {afterAll, describe, expect, test} = require('@jest/globals')
 const miss = require('mississippi')
 const split = require('split2')
 const rimraf = require('../src/util/rimraf')
@@ -13,7 +12,7 @@ describe('asset handler', () => {
     await rimraf(path.join(os.tmpdir(), 'asset-handler-tests'))
   })
 
-  test('can rewrite documents / queue downloads', (done) => {
+  test('can rewrite documents / queue downloads', async () => {
     // prettier-ignore
     const docs = [
       {_id: 'doc1', _type: 'bike', name: 'Scooter', image: {_type: 'image', caption: 'Scooter bike', asset: {_ref: 'image-6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840-png'}, nested: {_type: 'image', asset: {_ref: 'image-6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840-png'}}}},
@@ -28,28 +27,34 @@ describe('asset handler', () => {
     ]
 
     const assetHandler = getAssetHandler()
-    arrayToStream(docs)
-      .pipe(split(JSON.parse))
-      .pipe(assetHandler.rewriteAssets)
-      .pipe(miss.concat(onComplete))
+    return new Promise((resolve, reject) => {
+      arrayToStream(docs)
+        .pipe(split(JSON.parse))
+        .pipe(assetHandler.rewriteAssets)
+        .pipe(miss.concat(onComplete))
 
-    async function onComplete(newDocs) {
-      expect(newDocs).toHaveLength(6)
-      expect(docById(newDocs, 'doc1')).toMatchSnapshot('Rewritten asset for doc1')
-      expect(docById(newDocs, 'doc2')).toMatchSnapshot('Rewritten asset for doc2')
-      expect(docById(newDocs, 'doc3')).toMatchSnapshot('Rewritten asset for doc3')
-      expect(docById(newDocs, 'plain')).toMatchSnapshot('Nothing rewritten in assetless doc')
-      expect(docById(newDocs, 'refsDatMuxAsset')).toMatchSnapshot(
-        'Nothing rewritten if pattern doesnt match Sanity asset',
-      )
+      async function onComplete(newDocs) {
+        try {
+          expect(newDocs).toHaveLength(6)
+          expect(docById(newDocs, 'doc1')).toMatchSnapshot('Rewritten asset for doc1')
+          expect(docById(newDocs, 'doc2')).toMatchSnapshot('Rewritten asset for doc2')
+          expect(docById(newDocs, 'doc3')).toMatchSnapshot('Rewritten asset for doc3')
+          expect(docById(newDocs, 'plain')).toMatchSnapshot('Nothing rewritten in assetless doc')
+          expect(docById(newDocs, 'refsDatMuxAsset')).toMatchSnapshot(
+            'Nothing rewritten if pattern doesnt match Sanity asset',
+          )
 
-      await assetHandler.finish()
-      expect(assetHandler.filesWritten).toEqual(3)
-      done()
-    }
+          await assetHandler.finish()
+          expect(assetHandler.filesWritten).toEqual(3)
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
+      }
+    })
   })
 
-  test('can remove asset documents', (done) => {
+  test('can remove asset documents', async () => {
     // prettier-ignore
     const docs = [
       {_id: 'doc1', _type: 'bike', name: 'Scooter', image: {_type: 'image', caption: 'Scooter bike', asset: {_ref: 'image-6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840-png'}}},
@@ -62,25 +67,31 @@ describe('asset handler', () => {
     ]
 
     const assetHandler = getAssetHandler()
-    arrayToStream(docs)
-      .pipe(split(JSON.parse))
-      .pipe(assetHandler.stripAssets)
-      .pipe(miss.concat(onComplete))
+    return new Promise((resolve, reject) => {
+      arrayToStream(docs)
+        .pipe(split(JSON.parse))
+        .pipe(assetHandler.stripAssets)
+        .pipe(miss.concat(onComplete))
 
-    async function onComplete(newDocs) {
-      expect(newDocs).toHaveLength(4)
-      expect(docById(newDocs, 'doc1')).toMatchSnapshot('doc1 with no image asset')
-      expect(docById(newDocs, 'doc2')).toMatchSnapshot('doc2 with no image asset')
-      expect(docById(newDocs, 'doc3')).toMatchSnapshot('doc3 with no image asset')
-      expect(docById(newDocs, 'plain')).toMatchSnapshot('Nothing removed in assetless doc')
+      async function onComplete(newDocs) {
+        try {
+          expect(newDocs).toHaveLength(4)
+          expect(docById(newDocs, 'doc1')).toMatchSnapshot('doc1 with no image asset')
+          expect(docById(newDocs, 'doc2')).toMatchSnapshot('doc2 with no image asset')
+          expect(docById(newDocs, 'doc3')).toMatchSnapshot('doc3 with no image asset')
+          expect(docById(newDocs, 'plain')).toMatchSnapshot('Nothing removed in assetless doc')
 
-      await assetHandler.finish()
-      expect(assetHandler.filesWritten).toEqual(0)
-      done()
-    }
+          await assetHandler.finish()
+          expect(assetHandler.filesWritten).toEqual(0)
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
+      }
+    })
   })
 
-  test('downloads assets that are not referenced by documents', (done) => {
+  test('downloads assets that are not referenced by documents', async () => {
     // prettier-ignore
     const docs = [
       {_id: 'image-6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840-png', _type: 'sanity.imageAsset', url: 'https://cdn.sanity.io/images/__fixtures__/__test__/6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840.png'},
@@ -89,22 +100,28 @@ describe('asset handler', () => {
     ]
 
     const assetHandler = getAssetHandler()
-    arrayToStream(docs)
-      .pipe(split(JSON.parse))
-      .pipe(assetHandler.rewriteAssets)
-      .pipe(miss.concat(onComplete))
+    return new Promise((resolve, reject) => {
+      arrayToStream(docs)
+        .pipe(split(JSON.parse))
+        .pipe(assetHandler.rewriteAssets)
+        .pipe(miss.concat(onComplete))
 
-    async function onComplete(newDocs) {
-      expect(newDocs).toHaveLength(1)
-      expect(docById(newDocs, 'plain')).toMatchObject(docs[2])
+      async function onComplete(newDocs) {
+        try {
+          expect(newDocs).toHaveLength(1)
+          expect(docById(newDocs, 'plain')).toMatchObject(docs[2])
 
-      await assetHandler.finish()
-      expect(assetHandler.filesWritten).toEqual(2)
-      done()
-    }
+          await assetHandler.finish()
+          expect(assetHandler.filesWritten).toEqual(2)
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
+      }
+    })
   })
 
-  test('can skip asset documents', (done) => {
+  test('can skip asset documents', async () => {
     // prettier-ignore
     const docs = [
       {_id: 'doc1', _type: 'bike', name: 'Scooter', image: {_type: 'image', caption: 'Scooter bike', asset: {_ref: 'image-6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840-png'}}},
@@ -117,21 +134,27 @@ describe('asset handler', () => {
     ]
 
     const assetHandler = getAssetHandler()
-    arrayToStream(docs)
-      .pipe(split(JSON.parse))
-      .pipe(assetHandler.skipAssets)
-      .pipe(miss.concat(onComplete))
+    return new Promise((resolve, reject) => {
+      arrayToStream(docs)
+        .pipe(split(JSON.parse))
+        .pipe(assetHandler.skipAssets)
+        .pipe(miss.concat(onComplete))
 
-    async function onComplete(newDocs) {
-      expect(newDocs).toHaveLength(4)
-      expect(docById(newDocs, 'doc1')).toMatchObject(docs[0])
-      expect(docById(newDocs, 'doc2')).toMatchObject(docs[1])
-      expect(docById(newDocs, 'doc3')).toMatchObject(docs[2])
-      expect(docById(newDocs, 'plain')).toMatchObject(docs[6])
+      async function onComplete(newDocs) {
+        try {
+          expect(newDocs).toHaveLength(4)
+          expect(docById(newDocs, 'doc1')).toMatchObject(docs[0])
+          expect(docById(newDocs, 'doc2')).toMatchObject(docs[1])
+          expect(docById(newDocs, 'doc3')).toMatchObject(docs[2])
+          expect(docById(newDocs, 'plain')).toMatchObject(docs[6])
 
-      await assetHandler.finish()
-      expect(assetHandler.filesWritten).toEqual(0)
-      done()
-    }
+          await assetHandler.finish()
+          expect(assetHandler.filesWritten).toEqual(0)
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
+      }
+    })
   })
 })

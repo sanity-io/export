@@ -3,10 +3,6 @@ const {join: joinPath, dirname} = require('path')
 const {readdir, readFile} = require('fs/promises')
 const tar = require('tar')
 const stringToStream = require('string-to-stream')
-const {
-  expect,
-  jest: {fn: jestFn},
-} = require('@jest/globals')
 const AssetHandler = require('../../src/AssetHandler')
 const fs = require('fs')
 const path = require('path')
@@ -17,7 +13,7 @@ const getMockClient = () => ({
     query.endsWith('._type') ? `sanity.imageAsset` : `http://localhost:32323/${params.id}.jpg`,
 })
 
-const getMockArchive = () => ({append: jestFn(), abort: jestFn()})
+const getMockArchive = () => ({append: vi.fn(), abort: vi.fn()})
 
 const getMockQueue = () => {
   const ops = []

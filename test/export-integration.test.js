@@ -12,7 +12,6 @@ const path = require('path')
 const rimraf = require('../src/util/rimraf')
 const sanity = require('@sanity/client')
 const yaml = require('yaml')
-const {afterAll, describe, expect, test} = require('@jest/globals')
 const {newTestRunId, withTmpDir} = require('./helpers/suite')
 const {untarExportedFile, ndjsonToArray} = require('./helpers')
 
@@ -92,7 +91,7 @@ describe('export integration tests', () => {
           compress: true,
           assets: true,
           raw: false,
-          onProgress: jest.fn(),
+          onProgress: vi.fn(),
           outputPath: exportFilePath,
         }
 
