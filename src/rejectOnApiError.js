@@ -1,7 +1,7 @@
-import miss from 'mississippi'
+import {throughObj} from './util/streamHelpers.js'
 
 export const rejectOnApiError = () =>
-  miss.through.obj((doc, enc, callback) => {
+  throughObj((doc, enc, callback) => {
     // check if the document passed contains a document attribtue first, and return early.
     if (doc._id) {
       callback(null, doc)

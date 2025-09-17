@@ -1,6 +1,5 @@
-import miss from 'mississippi'
-
 import {debug} from './debug.js'
+import {throughObj} from './util/streamHelpers.js'
 
 const isDraftOrVersion = (doc) =>
   doc && doc._id && (doc._id.indexOf('drafts.') === 0 || doc._id.indexOf('versions.') === 0)
@@ -10,7 +9,7 @@ const isReleaseDocument = (doc) => doc && doc._id && doc._id.indexOf('_.releases
 const isCursor = (doc) => doc && !doc._id && doc.nextCursor !== undefined
 
 export const filterDocuments = (drafts) =>
-  miss.through.obj((doc, enc, callback) => {
+  throughObj((doc, enc, callback) => {
     if (isCursor(doc)) {
       debug('%o is a cursor, skipping', doc)
       return callback()

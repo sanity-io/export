@@ -1,9 +1,10 @@
 import {createHash} from 'node:crypto'
 import {createWriteStream, mkdirSync} from 'node:fs'
 import path from 'node:path'
+import {pipeline} from 'node:stream'
 import {format as formatUrl, parse as parseUrl} from 'node:url'
+import {promisify} from 'node:util'
 
-import miss from 'mississippi'
 import PQueue from 'p-queue'
 import {rimraf} from 'rimraf'
 
@@ -11,7 +12,9 @@ import {ASSET_DOWNLOAD_CONCURRENCY, ASSET_DOWNLOAD_MAX_RETRIES} from './constant
 import {debug} from './debug.js'
 import {getUserAgent} from './getUserAgent.js'
 import {requestStream} from './requestStream.js'
+import {through, throughObj} from './util/streamHelpers.js'
 
+const pipelineAsync = promisify(pipeline)
 const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
 const ACTION_REMOVE = 'remove'
 const ACTION_REWRITE = 'rewrite'
@@ -59,7 +62,7 @@ export class AssetHandler {
 
   // Called when we want to download all assets to local filesystem and rewrite documents to hold
   // placeholder asset references (_sanityAsset: 'image@file:///local/path')
-  rewriteAssets = miss.through.obj(async (doc, enc, callback) => {
+  rewriteAssets = throughObj(async (doc, enc, callback) => {
     if (['sanity.imageAsset', 'sanity.fileAsset'].includes(doc._type)) {
       const type = doc._type === 'sanity.imageAsset' ? 'image' : 'file'
       const filePath = `${type}s/${generateFilename(doc._id)}`
@@ -74,7 +77,7 @@ export class AssetHandler {
 
   // Called in the case where we don't _want_ assets, so basically just remove all asset documents
   // as well as references to assets (*.asset._ref ^= (image|file)-)
-  stripAssets = miss.through.obj(async (doc, enc, callback) => {
+  stripAssets = throughObj(async (doc, enc, callback) => {
     if (['sanity.imageAsset', 'sanity.fileAsset'].includes(doc._type)) {
       callback()
       return
@@ -85,7 +88,7 @@ export class AssetHandler {
 
   // Called when we are using raw export mode along with `assets: false`, where we simply
   // want to skip asset documents but retain asset references (useful for data mangling)
-  skipAssets = miss.through.obj((doc, enc, callback) => {
+  skipAssets = throughObj((doc, enc, callback) => {
     const isAsset = ['sanity.imageAsset', 'sanity.fileAsset'].includes(doc._type)
     if (isAsset) {
       callback()
@@ -95,9 +98,9 @@ export class AssetHandler {
     callback(null, doc)
   })
 
-  noop = miss.through.obj((doc, enc, callback) => callback(null, doc))
+  noop = throughObj((doc, enc, callback) => callback(null, doc))
 
-  queueAssetDownload(assetDoc, dstPath, type) {
+  queueAssetDownload(assetDoc, dstPath) {
     if (!assetDoc.url) {
       debug('Asset document "%s" does not have a URL property, skipping', assetDoc._id)
       return
@@ -185,7 +188,7 @@ export class AssetHandler {
         url.host === 'localhost:43216')
     ) {
       headers.Authorization = `Bearer ${token}`
-      url.query = {...(url.query || {}), dlRaw: 'true'}
+      url.query = {...url.query, dlRaw: 'true'}
     }
 
     return {url: formatUrl(url), headers}
@@ -382,57 +385,52 @@ function generateFilename(assetId) {
   return asset ? `${asset}.${extension}` : `${assetId}.bin`
 }
 
-function writeHashedStream(filePath, stream) {
+async function writeHashedStream(filePath, stream) {
   let size = 0
   const md5 = createHash('md5')
   const sha1 = createHash('sha1')
 
-  const hasher = miss.through((chunk, enc, cb) => {
+  const hasher = through((chunk, enc, cb) => {
     size += chunk.length
     md5.update(chunk)
     sha1.update(chunk)
     cb(null, chunk)
   })
 
-  return new Promise((resolve, reject) =>
-    miss.pipe(stream, hasher, createWriteStream(filePath), (err) => {
-      if (err) {
-        reject(err)
-        return
-      }
-
-      resolve({
-        size,
-        sha1: sha1.digest('hex'),
-        md5: md5.digest('hex'),
-      })
-    }),
-  )
+  await pipelineAsync(stream, hasher, createWriteStream(filePath))
+  return {
+    size,
+    sha1: sha1.digest('hex'),
+    md5: md5.digest('hex'),
+  }
 }
 
 function tryGetErrorFromStream(stream) {
   return new Promise((resolve, reject) => {
+    const chunks = []
     let receivedData = false
 
-    miss.pipe(stream, miss.concat(parse), (err) => {
-      if (err) {
-        reject(err)
-      } else if (!receivedData) {
-        // Resolve with null if no data was received, to let the caller
-        // know we couldn't parse the error.
-        resolve(null)
-      }
+    stream.on('data', (chunk) => {
+      receivedData = true
+      chunks.push(chunk)
     })
 
-    function parse(body) {
-      receivedData = true
+    stream.on('end', () => {
+      if (!receivedData) {
+        resolve(null)
+        return
+      }
+
+      const body = Buffer.concat(chunks)
       try {
         const parsed = JSON.parse(body.toString('utf8'))
         resolve(parsed.message || parsed.error || null)
-      } catch (err) {
+      } catch {
         resolve(body.toString('utf8').slice(0, 16000))
       }
-    }
+    })
+
+    stream.on('error', reject)
   })
 }
 

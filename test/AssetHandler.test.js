@@ -1,11 +1,10 @@
 import os from 'node:os'
 import path from 'node:path'
 
-import miss from 'mississippi'
 import {rimraf} from 'rimraf'
-import split from 'split2'
 import {afterAll, describe, expect, test} from 'vitest'
 
+import {concat, split} from '../src/util/streamHelpers.js'
 import {arrayToStream, getAssetHandler} from './helpers/index.js'
 
 const docById = (docs, id) => docs.find((doc) => doc._id === id)
@@ -34,7 +33,7 @@ describe('asset handler', () => {
       arrayToStream(docs)
         .pipe(split(JSON.parse))
         .pipe(assetHandler.rewriteAssets)
-        .pipe(miss.concat(onComplete))
+        .pipe(concat(onComplete))
 
       async function onComplete(newDocs) {
         try {
@@ -74,7 +73,7 @@ describe('asset handler', () => {
       arrayToStream(docs)
         .pipe(split(JSON.parse))
         .pipe(assetHandler.stripAssets)
-        .pipe(miss.concat(onComplete))
+        .pipe(concat(onComplete))
 
       async function onComplete(newDocs) {
         try {
@@ -107,7 +106,7 @@ describe('asset handler', () => {
       arrayToStream(docs)
         .pipe(split(JSON.parse))
         .pipe(assetHandler.rewriteAssets)
-        .pipe(miss.concat(onComplete))
+        .pipe(concat(onComplete))
 
       async function onComplete(newDocs) {
         try {
@@ -141,7 +140,7 @@ describe('asset handler', () => {
       arrayToStream(docs)
         .pipe(split(JSON.parse))
         .pipe(assetHandler.skipAssets)
-        .pipe(miss.concat(onComplete))
+        .pipe(concat(onComplete))
 
       async function onComplete(newDocs) {
         try {
