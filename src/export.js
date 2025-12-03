@@ -1,9 +1,10 @@
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
+import {createWriteStream} from 'node:fs'
+import {mkdir} from 'node:fs/promises'
+import {tmpdir} from 'node:os'
+import {join as joinPath} from 'node:path'
 import {PassThrough} from 'node:stream'
 import {finished, pipeline} from 'node:stream/promises'
-import zlib from 'node:zlib'
+import {constants as zlib} from 'node:zlib'
 
 import archiver from 'archiver'
 import {JsonStreamStringify} from 'json-stream-stringify'
@@ -31,9 +32,7 @@ export async function exportDataset(opts) {
   const archive = archiver('tar', {
     gzip: true,
     gzipOptions: {
-      level: options.compress
-        ? zlib.constants.Z_DEFAULT_COMPRESSION
-        : zlib.constants.Z_NO_COMPRESSION,
+      level: options.compress ? zlib.Z_DEFAULT_COMPRESSION : zlib.Z_NO_COMPRESSION,
     },
   })
   archive.on('warning', (err) => {
@@ -49,10 +48,10 @@ export async function exportDataset(opts) {
     .toLowerCase()
 
   const prefix = `${opts.dataset ?? opts.mediaLibraryId}-export-${slugDate}`
-  const tmpDir = path.join(os.tmpdir(), prefix)
-  fs.mkdirSync(tmpDir, {recursive: true})
-  const dataPath = path.join(tmpDir, 'data.ndjson')
-  const assetsPath = path.join(tmpDir, 'assets.json')
+  const tmpDir = joinPath(tmpdir(), prefix)
+  await mkdir(tmpDir, {recursive: true})
+  const dataPath = joinPath(tmpDir, 'data.ndjson')
+  const assetsPath = joinPath(tmpDir, 'assets.json')
 
   const cleanup = () =>
     rimraf(tmpDir).catch((err) => {
@@ -76,7 +75,7 @@ export async function exportDataset(opts) {
     outputStream = options.outputPath
   } else {
     outputStream =
-      options.outputPath === '-' ? process.stdout : fs.createWriteStream(options.outputPath)
+      options.outputPath === '-' ? process.stdout : createWriteStream(options.outputPath)
   }
 
   let assetStreamHandler = assetHandler.noop
@@ -204,7 +203,7 @@ export async function exportDataset(opts) {
     reject(err)
   })
 
-  pipeline(jsonStream, fs.createWriteStream(dataPath))
+  pipeline(jsonStream, createWriteStream(dataPath))
     .then(async () => {
       if (debugTimer !== null) clearTimeout(debugTimer)
 
@@ -253,7 +252,7 @@ export async function exportDataset(opts) {
           update: true,
         })
 
-        const assetsStream = fs.createWriteStream(assetsPath)
+        const assetsStream = createWriteStream(assetsPath)
         await pipeline(new JsonStreamStringify(assetMap), assetsStream)
 
         if (options.assetsMap) {
@@ -269,8 +268,8 @@ export async function exportDataset(opts) {
       }
 
       // Add all downloaded assets to archive
-      archive.directory(path.join(tmpDir, 'files'), `${prefix}/files`, {store: true})
-      archive.directory(path.join(tmpDir, 'images'), `${prefix}/images`, {store: true})
+      archive.directory(joinPath(tmpDir, 'files'), `${prefix}/files`, {store: true})
+      archive.directory(joinPath(tmpDir, 'images'), `${prefix}/images`, {store: true})
 
       debug('Finalizing archive, flushing streams')
       onProgress({step: 'Adding assets to archive...'})

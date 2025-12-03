@@ -1,17 +1,21 @@
 import {createHash} from 'node:crypto'
 import {createWriteStream, mkdirSync} from 'node:fs'
-import path from 'node:path'
+import {join as joinPath} from 'node:path'
 import {pipeline} from 'node:stream/promises'
 
 import PQueue from 'p-queue'
 import {rimraf} from 'rimraf'
 
-import {through, throughObj} from './util/streamHelpers.js'
-import {delay} from './util/delay'
-import {ASSET_DOWNLOAD_CONCURRENCY, ASSET_DOWNLOAD_MAX_RETRIES, DEFAULT_RETRY_DELAY} from './constants.js'
+import {
+  ASSET_DOWNLOAD_CONCURRENCY,
+  ASSET_DOWNLOAD_MAX_RETRIES,
+  DEFAULT_RETRY_DELAY,
+} from './constants.js'
 import {debug} from './debug.js'
 import {getUserAgent} from './getUserAgent.js'
 import {requestStream} from './requestStream.js'
+import {delay} from './util/delay'
+import {through, throughObj} from './util/streamHelpers.js'
 
 const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
 const ACTION_REMOVE = 'remove'
@@ -169,8 +173,8 @@ export class AssetHandler {
     }
 
     /* eslint-disable no-sync */
-    mkdirSync(path.join(this.tmpDir, 'files'), {recursive: true})
-    mkdirSync(path.join(this.tmpDir, 'images'), {recursive: true})
+    mkdirSync(joinPath(this.tmpDir, 'files'), {recursive: true})
+    mkdirSync(joinPath(this.tmpDir, 'images'), {recursive: true})
     /* eslint-enable no-sync */
     this.assetDirsCreated = true
   }
@@ -252,7 +256,7 @@ export class AssetHandler {
     this.maybeCreateAssetDirs()
 
     debug('Asset stream ready, writing to filesystem at %s', dstPath)
-    const tmpPath = path.join(this.tmpDir, dstPath)
+    const tmpPath = joinPath(this.tmpDir, dstPath)
     let sha1 = ''
     let md5 = ''
     let size = 0
