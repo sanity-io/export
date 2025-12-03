@@ -32,7 +32,6 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@sanity/util": "^4.20.0",
     "archiver": "^7.0.1",
     "debug": "^4.3.4",
     "get-it": "^8.6.10",
