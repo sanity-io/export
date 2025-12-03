@@ -49,7 +49,9 @@ const setupNock = async ({url, query, response}) => {
 describe('export integration tests', async () => {
   let testRunPath
   beforeAll(async () => {
-    testRunPath = await mkdtemp(path.join(import.meta.dirname, `testrun_${newTestRunId()}`))
+    testRunPath = await mkdtemp(
+      path.join(import.meta.dirname, 'testruns', `testrun_${newTestRunId()}`),
+    )
   })
 
   afterAll(async () => {
