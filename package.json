@@ -51,8 +51,7 @@
     "prettier": "^3.7.4",
     "prettier-plugin-packagejson": "^2.5.20",
     "tar": "^7.5.2",
-    "vitest": "^4.0.15",
-    "yaml": "^2.8.2"
+    "vitest": "^4.0.15"
   },
   "engines": {
     "node": ">=20.19 <22 || >=22.12"

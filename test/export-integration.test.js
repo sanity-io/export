@@ -11,7 +11,6 @@ import {createClient} from '@sanity/client'
 import nock from 'nock'
 import {rimraf} from 'rimraf'
 import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
-import yaml from 'yaml'
 
 import {exportDataset} from '../src/export.js'
 import {ndjsonToArray, untarExportedFile} from './helpers/index.js'
@@ -64,12 +63,12 @@ describe('export integration tests', async () => {
     }
   })
 
-  const testFiles = (await readdir(fixturesDirectory)).filter((file) => file.endsWith('.yaml'))
+  const testFiles = (await readdir(fixturesDirectory)).filter((file) => file.endsWith('.json'))
   const testCases = await Promise.all(
     testFiles.map(async (file) => {
       const fullPath = joinPath(fixturesDirectory, file)
       const fileContents = await readFile(fullPath, 'utf8')
-      const testData = yaml.parse(fileContents)
+      const testData = JSON.parse(fileContents)
       return {name: basename(file).replace(/-_/g, ' '), testData}
     }),
   )
@@ -91,7 +90,7 @@ describe('export integration tests', async () => {
         token: 'REDACTED',
       })
 
-      const opts = {
+      const options = {
         client,
         dataset: 'production',
         compress: true,
@@ -103,11 +102,11 @@ describe('export integration tests', async () => {
       }
 
       if (testData.error) {
-        await expect(exportDataset({...opts, ...testData.opts})).rejects.toThrow(testData.error)
+        await expect(exportDataset(options)).rejects.toThrow(testData.error)
       } else {
-        await expect(exportDataset({...opts, ...testData.opts})).resolves.not.toThrow()
+        await expect(exportDataset(options)).resolves.not.toThrow()
         await expectExportSuccess(exportDir, exportFilePath)
-        expect(opts.onProgress).toHaveBeenCalled()
+        expect(options.onProgress).toHaveBeenCalled()
       }
 
       expect(nock.isDone()).toBeTruthy()

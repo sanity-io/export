@@ -1,0 +1,14 @@
+{
+  "apiMocks": [
+    {
+      "url": "https://h5hc8cgs.api.sanity.io/v1/data/export/production",
+      "responses": [
+        {
+          "code": 200,
+          "body": "{_id: 'doc1', _type: 'bike', name: 'Scooter', image: {_type: 'image', caption: 'Scooter bike', asset: {_ref: 'image-6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840-png'}}}\n"
+        }
+      ]
+    }
+  ],
+  "error": "Expected property name or '}' in JSON at position 1"
+}
