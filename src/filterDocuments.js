@@ -21,7 +21,7 @@ module.exports = (drafts) =>
     }
 
     if (isSystemDocument(doc)) {
-      if (!drafts && isReleaseDocument(doc)) {
+      if (drafts && isReleaseDocument(doc)) {
         return callback(null, doc)
       }
       debug('%s is a system document, skipping', doc && doc._id)

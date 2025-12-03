@@ -89,7 +89,28 @@ describe('export', () => {
     })
   })
 
-  test('includes releases', async () => {
+  test('includes releases by default', async () => {
+    const port = 43213
+    server = await getServer(port, (req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.end(
+        JSON.stringify({
+          _id: '_.releases.radiant',
+          _type: 'system.release',
+          state: 'active',
+        }),
+      )
+    })
+    const options = await getOptions({port, drafts: true}) // this is the default
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 1,
+      outputPath: /out\.tar\.gz$/,
+    })
+  })
+
+  test('skips releases when drafts are excluded', async () => {
     const port = 43213
     server = await getServer(port, (req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -105,7 +126,7 @@ describe('export', () => {
     const result = await exportDataset(options)
     expect(result).toMatchObject({
       assetCount: 0,
-      documentCount: 1,
+      documentCount: 0,
       outputPath: /out\.tar\.gz$/,
     })
   })
@@ -813,27 +834,6 @@ describe('export', () => {
     })
   })
 
-  test('skips releases when drafts is true', async () => {
-    const port = 43213
-    server = await getServer(port, (req, res) => {
-      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
-      res.end(
-        JSON.stringify({
-          _id: '_.releases.radiant',
-          _type: 'system.release',
-          state: 'active',
-        }),
-      )
-    })
-    const options = await getOptions({port, drafts: true})
-    const result = await exportDataset(options)
-    expect(result).toMatchObject({
-      assetCount: 0,
-      documentCount: 0,
-      outputPath: /out\.tar\.gz$/,
-    })
-  })
-
   test('handles mixed document types correctly', async () => {
     const port = 43213
     const regularDoc = {
@@ -874,11 +874,11 @@ describe('export', () => {
     const resultNoDrafts = await exportDataset(optionsNoDrafts)
     expect(resultNoDrafts).toMatchObject({
       assetCount: 0,
-      documentCount: 2,
+      documentCount: 1,
       outputPath: /out\.tar\.gz$/,
     })
     await assertContents(resultNoDrafts.outputPath, {
-      documents: [regularDoc, releaseDoc],
+      documents: [regularDoc],
     })
 
     // Test with drafts: true
@@ -886,11 +886,11 @@ describe('export', () => {
     const resultWithDrafts = await exportDataset(optionsWithDrafts)
     expect(resultWithDrafts).toMatchObject({
       assetCount: 0,
-      documentCount: 3,
+      documentCount: 4,
       outputPath: /out\.tar\.gz$/,
     })
     await assertContents(resultWithDrafts.outputPath, {
-      documents: [regularDoc, draftDoc, versionDoc],
+      documents: [regularDoc, draftDoc, versionDoc, releaseDoc],
     })
   })
 })
