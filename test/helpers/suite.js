@@ -12,7 +12,7 @@ export const newTestRunId = () => {
 }
 
 // Generate a hash ID for a test name, to be used in naming temporary directories for individual tests.
-export const generateTestHashId = (testName) => {
+const generateTestHashId = (testName) => {
   return createHash('sha1').update(testName).digest('hex').substring(0, 6)
 }
 

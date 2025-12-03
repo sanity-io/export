@@ -1,11 +1,16 @@
 import os from 'node:os'
 import path from 'node:path'
+import {Readable} from 'node:stream'
 
 import {rimraf} from 'rimraf'
 import {afterAll, describe, expect, test} from 'vitest'
 
 import {concat, split} from '../src/util/streamHelpers.js'
-import {arrayToStream, getAssetHandler} from './helpers/index.js'
+import {getAssetHandler} from './helpers/index.js'
+
+function arrayToStream(docs) {
+  return Readable.from([docs.map((doc) => JSON.stringify(doc)).join('\n')])
+}
 
 const docById = (docs, id) => docs.find((doc) => doc._id === id)
 
