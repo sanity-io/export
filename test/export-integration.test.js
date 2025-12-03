@@ -4,7 +4,7 @@ This file contains integration tests for the exportDataset function and are base
   exportDataset function and a mocked backend API with disabled network requests.
 */
 
-import {mkdtemp, readdir, readFile, stat} from 'node:fs/promises'
+import {mkdir, mkdtemp, readdir, readFile, stat} from 'node:fs/promises'
 import {basename, join as joinPath} from 'node:path'
 
 import {createClient} from '@sanity/client'
@@ -51,6 +51,7 @@ const setupNock = async ({url, query = {}, response}) => {
 describe('export integration tests', async () => {
   let testRunPath
   beforeAll(async () => {
+    await mkdir(joinPath(import.meta.dirname, 'testruns'), {recursive: true})
     testRunPath = await mkdtemp(
       joinPath(import.meta.dirname, 'testruns', `testrun_${newTestRunId()}`),
     )
