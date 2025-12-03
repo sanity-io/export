@@ -1,11 +1,15 @@
 import {getIt} from 'get-it'
 import {keepAlive, promise} from 'get-it/middleware'
 
-import {delay} from './util/delay'
-import {tryThrowFriendlyError} from './util/friendlyError.js'
-import {DEFAULT_RETRY_DELAY, DOCUMENT_STREAM_MAX_RETRIES, REQUEST_READ_TIMEOUT} from './constants.js'
+import {
+  DEFAULT_RETRY_DELAY,
+  DOCUMENT_STREAM_MAX_RETRIES,
+  REQUEST_READ_TIMEOUT,
+} from './constants.js'
 import {debug} from './debug.js'
+import {delay} from './util/delay'
 import {extractFirstError} from './util/extractFirstError.js'
+import {tryThrowFriendlyError} from './util/friendlyError.js'
 
 const request = getIt([keepAlive(), promise({onlyBody: true})])
 
@@ -23,7 +27,11 @@ export async function requestStream(options) {
     typeof options.retryDelayMs === 'number' ? options.retryDelayMs : DEFAULT_RETRY_DELAY
 
   let error
-  for (let i = 0; i < maxRetries || (maxRetries === 0 && i === 0); i++) {
+
+  let i = 0
+  do {
+    i++
+
     try {
       return await request({
         ...options,
@@ -34,16 +42,20 @@ export async function requestStream(options) {
     } catch (err) {
       error = extractFirstError(err) || err
 
+      if (maxRetries === 0) {
+        throw error
+      }
+
       if (err.response && err.response.statusCode && err.response.statusCode < 500) {
         break
       }
 
-      if (i + 1 >= maxRetries && maxRetries !== 0) {
+      if (i < maxRetries) {
         debug('Error, retrying after %d ms: %s', retryDelayMs, error.message)
         await delay(retryDelayMs)
       }
     }
-  }
+  } while (i < maxRetries)
 
   await tryThrowFriendlyError(error)
 
