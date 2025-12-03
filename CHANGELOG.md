@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.0.2](https://github.com/sanity-io/export/compare/v4.0.1...v4.0.2) (2025-12-03)
+
+### Bug Fixes
+
+- export releases together with drafts and versions ([1fcdfda](https://github.com/sanity-io/export/commit/1fcdfdaa3b6cb52716dce43d6efaefc59b3d1438))
+
 ## [4.0.1](https://github.com/sanity-io/export/compare/v4.0.0...v4.0.1) (2025-08-14)
 
 ### Bug Fixes
