@@ -2,16 +2,13 @@ import {createReadStream} from 'node:fs'
 import {mkdir, rm} from 'node:fs/promises'
 import http from 'node:http'
 import os from 'node:os'
-import path, {join as joinPath} from 'node:path'
-import {fileURLToPath} from 'node:url'
+import {join as joinPath} from 'node:path'
 
 import {afterAll, afterEach, describe, expect, test} from 'vitest'
 
 import {MODE_CURSOR} from '../src/constants.js'
 import {exportDataset} from '../src/export.js'
 import {assertContents} from './helpers/index.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const OUTPUT_ROOT_DIR = joinPath(os.tmpdir(), 'sanity-export-tests')
 
@@ -202,12 +199,12 @@ describe('export', () => {
     server = await getServer(port, (req, res) => {
       if (req.url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       if (req.url.startsWith('/files')) {
         res.writeHead(200, 'OK', {'Content-Type': 'text/plain'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'coffee.txt')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'coffee.txt')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -280,7 +277,7 @@ describe('export', () => {
           return
         }
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -356,7 +353,7 @@ describe('export', () => {
     server = await getServer(port, (req, res) => {
       if (req.url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -394,7 +391,7 @@ describe('export', () => {
     server = await getServer(port, (req, res) => {
       if (req.url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -443,7 +440,7 @@ describe('export', () => {
     server = await getServer(port, (req, res) => {
       if (req.url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
