@@ -1,12 +1,12 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import {finished, PassThrough, pipeline} from 'node:stream'
-import {promisify} from 'node:util'
+import {PassThrough} from 'node:stream'
+import {finished, pipeline} from 'node:stream/promises'
 import zlib from 'node:zlib'
 
 import archiver from 'archiver'
-import JsonStreamStringify from 'json-stream-stringify'
+import {JsonStreamStringify} from 'json-stream-stringify'
 import {rimraf} from 'rimraf'
 
 import {AssetHandler} from './AssetHandler.js'
@@ -20,12 +20,9 @@ import {logFirstChunk} from './logFirstChunk.js'
 import {rejectOnApiError} from './rejectOnApiError.js'
 import {stringifyStream} from './stringifyStream.js'
 import {tryParseJson} from './tryParseJson.js'
-import {pipeAsync} from './util/pipeAsync.js'
-import {split, throughObj} from './util/streamHelpers.js'
+import {isWritableStream, split, throughObj} from './util/streamHelpers.js'
 import {validateOptions} from './validateOptions.js'
 
-const pipelineAsync = promisify(pipeline)
-const finishedAsync = promisify(finished)
 const noop = () => null
 
 export async function exportDataset(opts) {
@@ -68,6 +65,7 @@ export async function exportDataset(opts) {
     prefix,
     concurrency: options.assetConcurrency,
     maxRetries: options.maxAssetRetries,
+    retryDelayMs: options.retryDelayMs,
   })
 
   debug('Downloading assets (temporarily) to %s', tmpDir)
@@ -93,7 +91,7 @@ export async function exportDataset(opts) {
     reject = rej
   })
 
-  finishedAsync(archive)
+  finished(archive)
     .then(async () => {
       debug('Archive finished')
     })
@@ -155,20 +153,37 @@ export async function exportDataset(opts) {
   scheduleDebugTimer()
 
   const filterTransform = throughObj((doc, _enc, callback) => {
-    if (options.filterDocument(doc)) {
+    if (!options.filterDocument) {
       return callback(null, doc)
     }
-    return callback()
+
+    try {
+      const include = options.filterDocument(doc)
+      return include ? callback(null, doc) : callback()
+    } catch (err) {
+      return callback(err)
+    }
   })
 
   const transformTransform = throughObj((doc, _enc, callback) => {
-    callback(null, options.transformDocument(doc))
+    if (!options.transformDocument) {
+      return callback(null, doc)
+    }
+
+    try {
+      return callback(null, options.transformDocument(doc))
+    } catch (err) {
+      return callback(err)
+    }
   })
 
   const reportTransform = throughObj(reportDocumentCount)
 
   // Use pipeline to chain streams with proper error handling
   const jsonStream = new PassThrough()
+  finished(jsonStream)
+    .then(() => debug('JSON stream finished'))
+    .catch((err) => reject(err))
 
   pipeline(
     inputStream,
@@ -183,16 +198,13 @@ export async function exportDataset(opts) {
     reportTransform,
     stringifyStream(),
     jsonStream,
-    (err) => {
-      if (err) {
-        if (debugTimer !== null) clearTimeout(debugTimer)
-        debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
-        reject(err)
-      }
-    },
-  )
+  ).catch((err) => {
+    if (debugTimer !== null) clearTimeout(debugTimer)
+    debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
+    reject(err)
+  })
 
-  pipelineAsync(jsonStream, fs.createWriteStream(dataPath))
+  pipeline(jsonStream, fs.createWriteStream(dataPath))
     .then(async () => {
       if (debugTimer !== null) clearTimeout(debugTimer)
 
@@ -242,7 +254,7 @@ export async function exportDataset(opts) {
         })
 
         const assetsStream = fs.createWriteStream(assetsPath)
-        await pipeAsync(new JsonStreamStringify(assetMap), assetsStream)
+        await pipeline(new JsonStreamStringify(assetMap), assetsStream)
 
         if (options.assetsMap) {
           archive.file(assetsPath, {name: 'assets.json', prefix})
@@ -270,7 +282,7 @@ export async function exportDataset(opts) {
       reject(err)
     })
 
-  pipelineAsync(archive, outputStream)
+  pipeline(archive, outputStream)
     .then(() => onComplete())
     .catch(onComplete)
 
@@ -305,14 +317,4 @@ function getDocumentInputStream(options) {
   }
 
   throw new Error(`Invalid mode: ${options.mode}`)
-}
-
-function isWritableStream(val) {
-  return (
-    val !== null &&
-    typeof val === 'object' &&
-    typeof val.pipe === 'function' &&
-    typeof val._write === 'function' &&
-    typeof val._writableState === 'object'
-  )
 }

@@ -1,7 +1,7 @@
 import {debug} from './debug.js'
 import {through} from './util/streamHelpers.js'
 
-export const logFirstChunk = () => {
+export function logFirstChunk() {
   let firstChunk = true
   return through((chunk, enc, callback) => {
     if (firstChunk) {

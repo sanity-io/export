@@ -5,7 +5,7 @@ let ua = null
 
 export function getUserAgent() {
   if (!ua) {
-    const data = fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8')
+    const data = fs.readFileSync(path.join(import.meta.dirname, '..', 'package.json'), 'utf-8')
     const pkg = JSON.parse(data)
     ua = `${pkg.name}@${pkg.version}`
   }

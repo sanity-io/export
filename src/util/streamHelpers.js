@@ -1,6 +1,6 @@
 import {Transform} from 'node:stream'
 
-export const through = (transformFn) => {
+export function through(transformFn) {
   return new Transform({
     transform(chunk, encoding, callback) {
       transformFn(chunk, encoding, callback)
@@ -8,7 +8,7 @@ export const through = (transformFn) => {
   })
 }
 
-export const throughObj = (transformFn) => {
+export function throughObj(transformFn) {
   return new Transform({
     objectMode: true,
     transform(chunk, encoding, callback) {
@@ -17,7 +17,17 @@ export const throughObj = (transformFn) => {
   })
 }
 
-export const concat = (onData) => {
+export function isWritableStream(val) {
+  return (
+    val !== null &&
+    typeof val === 'object' &&
+    typeof val.pipe === 'function' &&
+    typeof val._write === 'function' &&
+    typeof val._writableState === 'object'
+  )
+}
+
+export function concat(onData) {
   const chunks = []
   return new Transform({
     objectMode: true,
@@ -59,7 +69,8 @@ export const split = (transformFn) => {
               this.push(result)
             }
           } catch (err) {
-            return callback(err)
+            callback(err)
+            return
           }
         } else {
           this.push(line)
@@ -68,21 +79,25 @@ export const split = (transformFn) => {
       callback()
     },
     flush(callback) {
-      if (buffer.length > 0) {
-        if (transformFn) {
-          try {
-            const result = transformFn(buffer)
-            if (result !== undefined) {
-              this.push(result)
-            }
-          } catch (err) {
-            return callback(err)
-          }
-        } else {
-          this.push(buffer)
-        }
+      if (buffer.length === 0) {
+        callback()
+        return
       }
-      callback()
+
+      if (!transformFn) {
+        callback(null, buffer)
+        return
+      }
+
+      try {
+        const result = transformFn(buffer)
+        if (result !== undefined) {
+          this.push(result)
+        }
+        callback()
+      } catch (err) {
+        callback(err)
+      }
     },
   })
 }

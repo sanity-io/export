@@ -5,7 +5,7 @@ This file contains integration tests for the exportDataset function and are base
 */
 
 import {mkdtemp, readdir, readFile, stat} from 'node:fs/promises'
-import path from 'node:path'
+import {basename, join as joinPath} from 'node:path'
 
 import {createClient} from '@sanity/client'
 import nock from 'nock'
@@ -17,7 +17,7 @@ import {exportDataset} from '../src/export.js'
 import {ndjsonToArray, untarExportedFile} from './helpers/index.js'
 import {newTestRunId, withTmpDir} from './helpers/suite.js'
 
-const fixturesDirectory = path.join(import.meta.dirname, 'fixtures')
+const fixturesDirectory = joinPath(import.meta.dirname, 'fixtures')
 
 const expectExportSuccess = async (exportDir, exportFilePath) => {
   const stats = await stat(exportFilePath)
@@ -32,25 +32,27 @@ const expectExportSuccess = async (exportDir, exportFilePath) => {
   expect(JSON.parse(assetsFile)).toMatchSnapshot()
 }
 
-const setupNock = async ({url, query, response}) => {
-  let u = new URL(url)
-  const mockedApi = nock(u.origin).get(u.pathname ? u.pathname : '/')
-  mockedApi.query(query ? query : {})
+const setupNock = async ({url, query = {}, response}) => {
+  nock.disableNetConnect()
 
-  let body
-  if (response.bodyFromFile === true) {
-    body = await readFile(path.join(fixturesDirectory, response.bodyFromFile))
-  } else {
-    body = response.body
-  }
-  mockedApi.reply(response.code ? response.code : 200, body)
+  const {origin, pathname} = URL.parse(url)
+
+  const body =
+    response.bodyFromFile === true
+      ? await readFile(joinPath(fixturesDirectory, response.bodyFromFile))
+      : response.body
+
+  return nock(origin)
+    .get(pathname || '/')
+    .query(query)
+    .reply(response.code ? response.code : 200, body)
 }
 
 describe('export integration tests', async () => {
   let testRunPath
   beforeAll(async () => {
     testRunPath = await mkdtemp(
-      path.join(import.meta.dirname, 'testruns', `testrun_${newTestRunId()}`),
+      joinPath(import.meta.dirname, 'testruns', `testrun_${newTestRunId()}`),
     )
   })
 
@@ -61,55 +63,53 @@ describe('export integration tests', async () => {
     }
   })
 
-  const prettyTestName = (filename) => {
-    return path.parse(filename).name.replace(/-_/g, ' ')
-  }
-
   const testFiles = (await readdir(fixturesDirectory)).filter((file) => file.endsWith('.yaml'))
-  for (const file of testFiles) {
-    const fullPath = path.join(fixturesDirectory, file)
-    const fileContents = await readFile(fullPath, 'utf8')
-    const testData = yaml.parse(fileContents)
+  const testCases = await Promise.all(
+    testFiles.map(async (file) => {
+      const fullPath = joinPath(fixturesDirectory, file)
+      const fileContents = await readFile(fullPath, 'utf8')
+      const testData = yaml.parse(fileContents)
+      return {name: basename(file).replace(/-_/g, ' '), testData}
+    }),
+  )
 
-    // eslint-disable-next-line no-loop-func
-    test(prettyTestName(file), async () => {
-      // eslint-disable-next-line max-nested-callbacks
-      await withTmpDir(testRunPath, async (exportDir) => {
-        const exportFilePath = path.join(exportDir, 'out.tar.gz')
-        for (const apiMock of testData.apiMocks) {
-          for (const response of apiMock.responses) {
-            await setupNock({url: apiMock.url, query: apiMock.query, response})
-          }
+  test.each(testCases)('$name', async ({testData}) => {
+    await withTmpDir(testRunPath, async (exportDir) => {
+      const exportFilePath = joinPath(exportDir, 'out.tar.gz')
+      for (const apiMock of testData.apiMocks) {
+        for (const response of apiMock.responses) {
+          await setupNock({url: apiMock.url, query: apiMock.query, response})
         }
+      }
 
-        const client = createClient({
-          projectId: 'h5hc8cgs',
-          dataset: 'production',
-          useCdn: false,
-          apiVersion: '1',
-          token: 'REDACTED',
-        })
-
-        const opts = {
-          client,
-          dataset: 'production',
-          compress: true,
-          assets: true,
-          raw: false,
-          onProgress: vi.fn(),
-          outputPath: exportFilePath,
-        }
-
-        if (testData.error) {
-          await expect(exportDataset({...opts, ...testData.opts})).rejects.toThrow(testData.error)
-        } else {
-          await expect(exportDataset({...opts, ...testData.opts})).resolves.not.toThrow()
-          await expectExportSuccess(exportDir, exportFilePath)
-          expect(opts.onProgress).toHaveBeenCalled()
-        }
-
-        expect(nock.isDone()).toBeTruthy()
+      const client = createClient({
+        projectId: 'h5hc8cgs',
+        dataset: 'production',
+        useCdn: false,
+        apiVersion: '1',
+        token: 'REDACTED',
       })
+
+      const opts = {
+        client,
+        dataset: 'production',
+        compress: true,
+        assets: true,
+        raw: false,
+        onProgress: vi.fn(),
+        outputPath: exportFilePath,
+        retryDelayMs: 10,
+      }
+
+      if (testData.error) {
+        await expect(exportDataset({...opts, ...testData.opts})).rejects.toThrow(testData.error)
+      } else {
+        await expect(exportDataset({...opts, ...testData.opts})).resolves.not.toThrow()
+        await expectExportSuccess(exportDir, exportFilePath)
+        expect(opts.onProgress).toHaveBeenCalled()
+      }
+
+      expect(nock.isDone()).toBeTruthy()
     })
-  }
+  })
 })

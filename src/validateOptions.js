@@ -23,7 +23,7 @@ const exportDefaults = {
   transformDocument: (doc) => doc,
 }
 
-function validateOptions(opts) {
+export function validateOptions(opts) {
   const options = {...exportDefaults, ...opts}
 
   const resources = [options.dataset, options.mediaLibraryId].filter(
@@ -111,5 +111,3 @@ function validateOptions(opts) {
 
   return options
 }
-
-export {validateOptions}

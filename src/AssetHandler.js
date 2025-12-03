@@ -1,20 +1,18 @@
 import {createHash} from 'node:crypto'
 import {createWriteStream, mkdirSync} from 'node:fs'
 import path from 'node:path'
-import {pipeline} from 'node:stream'
-import {format as formatUrl, parse as parseUrl} from 'node:url'
-import {promisify} from 'node:util'
+import {pipeline} from 'node:stream/promises'
 
 import PQueue from 'p-queue'
 import {rimraf} from 'rimraf'
 
-import {ASSET_DOWNLOAD_CONCURRENCY, ASSET_DOWNLOAD_MAX_RETRIES} from './constants.js'
+import {through, throughObj} from './util/streamHelpers.js'
+import {delay} from './util/delay'
+import {ASSET_DOWNLOAD_CONCURRENCY, ASSET_DOWNLOAD_MAX_RETRIES, DEFAULT_RETRY_DELAY} from './constants.js'
 import {debug} from './debug.js'
 import {getUserAgent} from './getUserAgent.js'
 import {requestStream} from './requestStream.js'
-import {through, throughObj} from './util/streamHelpers.js'
 
-const pipelineAsync = promisify(pipeline)
 const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
 const ACTION_REMOVE = 'remove'
 const ACTION_REWRITE = 'rewrite'
@@ -34,6 +32,7 @@ export class AssetHandler {
     this.filesWritten = 0
     this.queueSize = 0
     this.maxRetries = options.maxRetries || ASSET_DOWNLOAD_MAX_RETRIES
+    this.retryDelayMs = options.retryDelayMs
     this.queue = options.queue || new PQueue({concurrency})
 
     this.rejectedError = null
@@ -144,6 +143,8 @@ export class AssetHandler {
             // Don't retry on client errors
             break
           }
+
+          await delay(this.retryDelayMs || DEFAULT_RETRY_DELAY)
         }
       }
       throw dlError
@@ -179,7 +180,12 @@ export class AssetHandler {
     const headers = {'User-Agent': getUserAgent()}
     const isImage = assetDoc._type === 'sanity.imageAsset'
 
-    const url = parseUrl(assetDoc.url, true)
+    const url = URL.parse(assetDoc.url)
+    // If we can't parse it, return as-is
+    if (!url) {
+      return {url: assetDoc.url, headers}
+    }
+
     if (
       isImage &&
       token &&
@@ -188,10 +194,10 @@ export class AssetHandler {
         url.host === 'localhost:43216')
     ) {
       headers.Authorization = `Bearer ${token}`
-      url.query = {...url.query, dlRaw: 'true'}
+      url.searchParams.set('dlRaw', 'true')
     }
 
-    return {url: formatUrl(url), headers}
+    return {url: url.toString(), headers}
   }
 
   // eslint-disable-next-line max-statements
@@ -204,7 +210,10 @@ export class AssetHandler {
 
     let stream
     try {
-      stream = await requestStream(options)
+      stream = await requestStream({
+        maxRetries: 0, // We handle retries ourselves in queueAssetDownload
+        ...options,
+      })
     } catch (err) {
       const message = 'Failed to create asset stream'
       if (typeof err.message === 'string') {
@@ -397,7 +406,7 @@ async function writeHashedStream(filePath, stream) {
     cb(null, chunk)
   })
 
-  await pipelineAsync(stream, hasher, createWriteStream(filePath))
+  await pipeline(stream, hasher, createWriteStream(filePath))
   return {
     size,
     sha1: sha1.digest('hex'),

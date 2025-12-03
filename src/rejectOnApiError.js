@@ -1,7 +1,7 @@
 import {throughObj} from './util/streamHelpers.js'
 
-export const rejectOnApiError = () =>
-  throughObj((doc, enc, callback) => {
+export function rejectOnApiError() {
+  return throughObj((doc, enc, callback) => {
     // check if the document passed contains a document attribtue first, and return early.
     if (doc._id) {
       callback(null, doc)
@@ -28,3 +28,4 @@ export const rejectOnApiError = () =>
 
     callback(null, doc)
   })
+}

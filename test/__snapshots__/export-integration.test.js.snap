@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`export integration tests > export-no-assets 1`] = `
+exports[`export integration tests > 'export-no-assets.yaml' 1`] = `
 [
   {
     "_id": "book1",
@@ -45,17 +45,17 @@ exports[`export integration tests > export-no-assets 1`] = `
 ]
 `;
 
-exports[`export integration tests > export-no-assets 2`] = `{}`;
+exports[`export integration tests > 'export-no-assets.yaml' 2`] = `{}`;
 
-exports[`export integration tests > export-no-document 1`] = `
+exports[`export integration tests > 'export-no-document.yaml' 1`] = `
 [
   {},
 ]
 `;
 
-exports[`export integration tests > export-no-document 2`] = `{}`;
+exports[`export integration tests > 'export-no-document.yaml' 2`] = `{}`;
 
-exports[`export integration tests > export-temporarily-failing-assets 1`] = `
+exports[`export integration tests > 'export-temporarily-failing-assets.yaml' 1`] = `
 [
   {
     "_id": "book1",
@@ -100,9 +100,9 @@ exports[`export integration tests > export-temporarily-failing-assets 1`] = `
 ]
 `;
 
-exports[`export integration tests > export-temporarily-failing-assets 2`] = `{}`;
+exports[`export integration tests > 'export-temporarily-failing-assets.yaml' 2`] = `{}`;
 
-exports[`export integration tests > export-with-assets 1`] = `
+exports[`export integration tests > 'export-with-assets.yaml' 1`] = `
 [
   {
     "_id": "book1",
@@ -147,4 +147,4 @@ exports[`export integration tests > export-with-assets 1`] = `
 ]
 `;
 
-exports[`export integration tests > export-with-assets 2`] = `{}`;
+exports[`export integration tests > 'export-with-assets.yaml' 2`] = `{}`;

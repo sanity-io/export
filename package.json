@@ -32,27 +32,28 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@sanity/util": "^4.3.0",
+    "@sanity/util": "^4.20.0",
     "archiver": "^7.0.1",
     "debug": "^4.3.4",
     "get-it": "^8.6.10",
-    "json-stream-stringify": "^2.0.2",
-    "p-queue": "^8.1.1",
-    "rimraf": "^6.0.1"
+    "json-stream-stringify": "^3.1.6",
+    "p-queue": "^9.0.1",
+    "rimraf": "^6.1.2"
   },
   "devDependencies": {
-    "@sanity/client": "^7.8.2",
+    "@sanity/client": "^7.13.1",
     "@sanity/semantic-release-preset": "^5.0.0",
+    "@vitest/coverage-v8": "^4.0.15",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-config-sanity": "^7.1.2",
-    "eslint-plugin-prettier": "^5.1.3",
-    "nock": "^13.5.4",
-    "prettier": "^3.6.2",
-    "prettier-plugin-packagejson": "^2.5.19",
-    "tar": "^7.4.3",
-    "vitest": "^3.2.4",
-    "yaml": "^2.8.1"
+    "eslint-config-sanity": "^7.1.4",
+    "eslint-plugin-prettier": "^5.5.4",
+    "nock": "^14.0.10",
+    "prettier": "^3.7.4",
+    "prettier-plugin-packagejson": "^2.5.20",
+    "tar": "^7.5.2",
+    "vitest": "^4.0.15",
+    "yaml": "^2.8.2"
   },
   "engines": {
     "node": ">=20.19 <22 || >=22.12"

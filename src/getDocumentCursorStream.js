@@ -7,7 +7,7 @@ import {requestStream} from './requestStream.js'
 // same regex as split2 is using by default: https://github.com/mcollina/split2/blob/53432f54bd5bf422bd55d91d38f898b6c9496fc1/index.js#L86
 const splitRegex = /\r?\n/
 
-export const getDocumentCursorStream = async (options) => {
+export async function getDocumentCursorStream(options) {
   let streamsInflight = 0
   function decrementInflight(stream) {
     streamsInflight--
@@ -86,11 +86,15 @@ function startStream(options, nextCursor) {
 
   debug('Starting stream with cursor "%s"', nextCursor)
 
-  return requestStream({url: url.toString(), headers, maxRetries: options.maxRetries}).then(
-    (res) => {
-      debug('Got stream with HTTP %d', res.statusCode)
+  return requestStream({
+    url: url.toString(),
+    headers,
+    maxRetries: options.maxRetries,
+    retryDelayMs: options.retryDelayMs,
+    readTimeout: options.readTimeout,
+  }).then((res) => {
+    debug('Got stream with HTTP %d', res.statusCode)
 
-      return res
-    },
-  )
+    return res
+  })
 }

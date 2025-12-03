@@ -15,6 +15,13 @@ export const DOCUMENT_STREAM_MAX_RETRIES = 5
 export const ASSET_DOWNLOAD_MAX_RETRIES = 10
 
 /**
+ * Default delay between retries when retrieving assets or document stream.
+ * User overridable as `options.retryDelayMs`.
+ * @internal
+ */
+export const DEFAULT_RETRY_DELAY = 1500
+
+/**
  * How many concurrent asset downloads to allow.
  * User overridable as `options.assetConcurrency`.
  * @internal
