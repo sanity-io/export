@@ -1,7 +1,7 @@
-const pkg = require('../package.json')
-const requestStream = require('./requestStream')
+import {getUserAgent} from './getUserAgent.js'
+import {requestStream} from './requestStream.js'
 
-module.exports = (options) => {
+export function getDocumentsStream(options) {
   // Sanity client doesn't handle streams natively since we want to support node/browser
   // with same API. We're just using it here to get hold of URLs and tokens.
   const baseUrl = options.client.getUrl(
@@ -17,7 +17,7 @@ module.exports = (options) => {
 
   const token = options.client.config().token
   const headers = {
-    'User-Agent': `${pkg.name}@${pkg.version}`,
+    'User-Agent': getUserAgent(),
     ...(token ? {Authorization: `Bearer ${token}`} : {}),
   }
 
@@ -25,6 +25,7 @@ module.exports = (options) => {
     url: url.toString(),
     headers,
     maxRetries: options.maxRetries,
+    retryDelayMs: options.retryDelayMs,
     readTimeout: options.readTimeout,
   })
 }

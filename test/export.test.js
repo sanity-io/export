@@ -1,18 +1,19 @@
-const os = require('os')
-const http = require('http')
-const {join: joinPath} = require('path')
-const {createReadStream} = require('fs')
-const {mkdir, rm} = require('fs/promises')
-const {afterAll, describe, expect, test, afterEach} = require('@jest/globals')
+import {createReadStream} from 'node:fs'
+import {mkdir, rm} from 'node:fs/promises'
+import http from 'node:http'
+import os from 'node:os'
+import {join as joinPath} from 'node:path'
 
-const exportDataset = require('../src/export')
-const {MODE_CURSOR} = require('../src/constants')
-const {assertContents} = require('./helpers')
+import {afterAll, afterEach, describe, expect, test} from 'vitest'
+
+import {MODE_CURSOR} from '../src/constants.js'
+import {exportDataset} from '../src/export.js'
+import {assertContents} from './helpers/index.js'
 
 const OUTPUT_ROOT_DIR = joinPath(os.tmpdir(), 'sanity-export-tests')
 
 const getMockClient = (port) => ({
-  getUrl: (path) => `http://localhost:${port}${path}`,
+  getUrl: (urlPath) => `http://localhost:${port}${urlPath}`,
   config: () => ({token: 'skSomeToken', projectId: 'projectId'}),
 })
 
@@ -27,6 +28,7 @@ const getOptions = async ({port, maxRetries = 2, types, ...rest}) => {
     outputPath,
     maxRetries,
     types,
+    retryDelayMs: 10,
     ...rest,
   }
 }
@@ -218,12 +220,12 @@ describe('export', () => {
     server = await getServer(port, (req, res) => {
       if (req.url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       if (req.url.startsWith('/files')) {
         res.writeHead(200, 'OK', {'Content-Type': 'text/plain'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'coffee.txt')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'coffee.txt')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -296,7 +298,7 @@ describe('export', () => {
           return
         }
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -372,7 +374,7 @@ describe('export', () => {
     server = await getServer(port, (req, res) => {
       if (req.url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -410,7 +412,7 @@ describe('export', () => {
     server = await getServer(port, (req, res) => {
       if (req.url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -459,7 +461,7 @@ describe('export', () => {
     server = await getServer(port, (req, res) => {
       if (req.url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
-        createReadStream(joinPath(__dirname, 'fixtures', 'mead.png')).pipe(res)
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
@@ -486,7 +488,7 @@ describe('export', () => {
   test('throws error if unable to reach api', async () => {
     const options = await getOptions({port: 43210})
     await expect(() => exportDataset(options)).rejects.toThrow(/Failed to fetch/)
-  }, 15000)
+  })
 
   test('throws error if api responds with 5xx error consistently', async () => {
     const port = 43211

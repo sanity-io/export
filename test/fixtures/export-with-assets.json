@@ -1,0 +1,28 @@
+{
+  "apiMocks": [
+    {
+      "url": "https://h5hc8cgs.api.sanity.io/v1/data/export/production",
+      "responses": [
+        {
+          "code": 200,
+          "body": "{\"_id\": \"book1\", \"_type\": \"book\", \"title\": \"Modern Scooters\", \"publisherImage\": {\"_type\": \"image\", \"caption\": \"Galaxy Publisher\", \"asset\": {\"_ref\": \"image-publisher-1-png\"}, \"parentPublisherImage\": {\"_type\": \"image\", \"asset\": {\"_ref\": \"image-publisher-3-jpg\"}}}}\n{\"_id\": \"book2\", \"_type\": \"book\", \"title\": \"Duplicity in Motion\", \"publisherImage\": {\"_type\": \"image\", \"asset\": {\"_ref\": \"image-publisher-1-png\"}}}\n{\"_id\": \"book3\", \"_type\": \"book\", \"title\": \"Tandem Tales\", \"publisherImage\": {\"_type\": \"image\", \"asset\": {\"_ref\": \"image-publisher-2-jpg\"}}}\n{\"_id\": \"image-publisher-1-png\", \"_type\": \"sanity.imageAsset\", \"url\": \"https://cdn.sanity.io/images/publisher-1-3360x840.png\"}\n{\"_id\": \"image-publisher-2-jpg\", \"_type\": \"sanity.imageAsset\", \"url\": \"https://cdn.sanity.io/images/publisher-2-310x282.jpg\"}\n{\"_id\": \"image-publisher-3-jpg\", \"_type\": \"sanity.imageAsset\", \"url\": \"https://cdn.sanity.io/images/publisher-3-524x524.jpg\"}\n"
+        }
+      ]
+    },
+    {
+      "url": "https://cdn.sanity.io/images/publisher-1-3360x840.png",
+      "query": {"dlRaw": true},
+      "responses": [{"code": 200, "bodyFromFile": "mead.png"}]
+    },
+    {
+      "url": "https://cdn.sanity.io/images/publisher-2-310x282.jpg",
+      "query": {"dlRaw": true},
+      "responses": [{"code": 200, "bodyFromFile": "mead.png"}]
+    },
+    {
+      "url": "https://cdn.sanity.io/images/publisher-3-524x524.jpg",
+      "query": {"dlRaw": true},
+      "responses": [{"code": 200, "bodyFromFile": "mead.png"}]
+    }
+  ]
+}

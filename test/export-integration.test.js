@@ -4,51 +4,56 @@ This file contains integration tests for the exportDataset function and are base
   exportDataset function and a mocked backend API with disabled network requests.
 */
 
-const exportDataset = require('../src/export')
-const fs = require('fs/promises')
-const {readdirSync, readFileSync} = require('fs') // TODO: switch to fs/promises
-const nock = require('nock')
-const path = require('path')
-const rimraf = require('../src/util/rimraf')
-const sanity = require('@sanity/client')
-const yaml = require('yaml')
-const {afterAll, describe, expect, test} = require('@jest/globals')
-const {newTestRunId, withTmpDir} = require('./helpers/suite')
-const {untarExportedFile, ndjsonToArray} = require('./helpers')
+import {mkdir, mkdtemp, readdir, readFile, stat} from 'node:fs/promises'
+import {basename, join as joinPath} from 'node:path'
 
-const fixturesDirectory = path.join(__dirname, 'fixtures')
+import {createClient} from '@sanity/client'
+import nock from 'nock'
+import {rimraf} from 'rimraf'
+import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
+
+import {exportDataset} from '../src/export.js'
+import {ndjsonToArray, untarExportedFile} from './helpers/index.js'
+import {newTestRunId, withTmpDir} from './helpers/suite.js'
+
+const fixturesDirectory = joinPath(import.meta.dirname, 'fixtures')
 
 const expectExportSuccess = async (exportDir, exportFilePath) => {
-  const stats = await fs.stat(exportFilePath)
+  const stats = await stat(exportFilePath)
   expect(stats.size).toBeGreaterThan(0)
 
   const extractedDir = await untarExportedFile(exportDir, exportFilePath)
 
-  const dataFile = await fs.readFile(`${extractedDir}/data.ndjson`, 'utf8')
+  const dataFile = await readFile(`${extractedDir}/data.ndjson`, 'utf8')
   expect(ndjsonToArray(dataFile)).toMatchSnapshot()
 
-  const assetsFile = await fs.readFile(`${extractedDir}/assets.json`, 'utf8')
+  const assetsFile = await readFile(`${extractedDir}/assets.json`, 'utf8')
   expect(JSON.parse(assetsFile)).toMatchSnapshot()
 }
 
-const setupNock = async ({url, query, response}) => {
-  let u = new URL(url)
-  const mockedApi = nock(u.origin).get(u.pathname ? u.pathname : '/')
-  mockedApi.query(query ? query : {})
+const setupNock = async ({url, query = {}, response}) => {
+  nock.disableNetConnect()
 
-  let body
-  if (response.bodyFromFile === true) {
-    body = await fs.readFile(path.join(fixturesDirectory, response.bodyFromFile))
-  } else {
-    body = response.body
-  }
-  mockedApi.reply(response.code ? response.code : 200, body)
+  const {origin, pathname} = URL.parse(url)
+
+  const body =
+    response.bodyFromFile === true
+      ? await readFile(joinPath(fixturesDirectory, response.bodyFromFile))
+      : response.body
+
+  return nock(origin)
+    .get(pathname || '/')
+    .query(query)
+    .reply(response.code ? response.code : 200, body)
 }
 
-describe('export integration tests', () => {
+describe('export integration tests', async () => {
   let testRunPath
   beforeAll(async () => {
-    testRunPath = await fs.mkdtemp(path.join(__dirname, `testrun_${newTestRunId()}`))
+    await mkdir(joinPath(import.meta.dirname, 'testruns'), {recursive: true})
+    testRunPath = await mkdtemp(
+      joinPath(import.meta.dirname, 'testruns', `testrun_${newTestRunId()}`),
+    )
   })
 
   afterAll(async () => {
@@ -58,54 +63,53 @@ describe('export integration tests', () => {
     }
   })
 
-  const prettyTestName = (filename) => {
-    return path.parse(filename).name.replace(/-_/g, ' ')
-  }
+  const testFiles = (await readdir(fixturesDirectory)).filter((file) => file.endsWith('.json'))
+  const testCases = await Promise.all(
+    testFiles.map(async (file) => {
+      const fullPath = joinPath(fixturesDirectory, file)
+      const fileContents = await readFile(fullPath, 'utf8')
+      const testData = JSON.parse(fileContents)
+      return {name: basename(file).replace(/-_/g, ' '), testData}
+    }),
+  )
 
-  const testFiles = readdirSync(fixturesDirectory).filter((file) => file.endsWith('.yaml'))
-  testFiles.forEach((file) => {
-    const fullPath = path.join(fixturesDirectory, file)
-    const fileContents = readFileSync(fullPath, 'utf8')
-    const testData = yaml.parse(fileContents)
-
-    test(prettyTestName(file), async () => {
-      // eslint-disable-next-line max-nested-callbacks
-      await withTmpDir(testRunPath, async (exportDir) => {
-        const exportFilePath = path.join(exportDir, 'out.tar.gz')
-        for (const apiMock of testData.apiMocks) {
-          for (const response of apiMock.responses) {
-            await setupNock({url: apiMock.url, query: apiMock.query, response})
-          }
+  test.each(testCases)('$name', async ({testData}) => {
+    await withTmpDir(testRunPath, async (exportDir) => {
+      const exportFilePath = joinPath(exportDir, 'out.tar.gz')
+      for (const apiMock of testData.apiMocks) {
+        for (const response of apiMock.responses) {
+          await setupNock({url: apiMock.url, query: apiMock.query, response})
         }
+      }
 
-        const client = sanity.createClient({
-          projectId: 'h5hc8cgs',
-          dataset: 'production',
-          useCdn: false,
-          apiVersion: '1',
-          token: 'REDACTED',
-        })
-
-        const opts = {
-          client,
-          dataset: 'production',
-          compress: true,
-          assets: true,
-          raw: false,
-          onProgress: jest.fn(),
-          outputPath: exportFilePath,
-        }
-
-        if (testData.error) {
-          await expect(exportDataset({...opts, ...testData.opts})).rejects.toThrow(testData.error)
-        } else {
-          await expect(exportDataset({...opts, ...testData.opts})).resolves.not.toThrow()
-          await expectExportSuccess(exportDir, exportFilePath)
-          expect(opts.onProgress).toHaveBeenCalled()
-        }
-
-        expect(nock.isDone()).toBeTruthy()
+      const client = createClient({
+        projectId: 'h5hc8cgs',
+        dataset: 'production',
+        useCdn: false,
+        apiVersion: '1',
+        token: 'REDACTED',
       })
+
+      const options = {
+        client,
+        dataset: 'production',
+        compress: true,
+        assets: true,
+        raw: false,
+        onProgress: vi.fn(),
+        outputPath: exportFilePath,
+        retryDelayMs: 10,
+      }
+
+      if (testData.error) {
+        await expect(exportDataset(options)).rejects.toThrow(testData.error)
+      } else {
+        await expect(exportDataset(options)).resolves.not.toThrow()
+        await expectExportSuccess(exportDir, exportFilePath)
+        expect(options.onProgress).toHaveBeenCalled()
+      }
+
+      expect(nock.isDone()).toBeTruthy()
     })
   })
 })

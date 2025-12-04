@@ -1,21 +1,27 @@
-const crypto = require('crypto')
-const {mkdirSync, createWriteStream} = require('fs')
-const path = require('path')
-const {parse: parseUrl, format: formatUrl} = require('url')
-const {omit} = require('lodash')
-const miss = require('mississippi')
-const PQueue = require('p-queue')
-const pkg = require('../package.json')
-const debug = require('./debug')
-const requestStream = require('./requestStream')
-const rimraf = require('./util/rimraf')
-const {ASSET_DOWNLOAD_MAX_RETRIES, ASSET_DOWNLOAD_CONCURRENCY} = require('./constants')
+import {createHash} from 'node:crypto'
+import {createWriteStream, mkdirSync} from 'node:fs'
+import {join as joinPath} from 'node:path'
+import {pipeline} from 'node:stream/promises'
+
+import PQueue from 'p-queue'
+import {rimraf} from 'rimraf'
+
+import {
+  ASSET_DOWNLOAD_CONCURRENCY,
+  ASSET_DOWNLOAD_MAX_RETRIES,
+  DEFAULT_RETRY_DELAY,
+} from './constants.js'
+import {debug} from './debug.js'
+import {getUserAgent} from './getUserAgent.js'
+import {requestStream} from './requestStream.js'
+import {delay} from './util/delay.js'
+import {through, throughObj} from './util/streamHelpers.js'
 
 const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
 const ACTION_REMOVE = 'remove'
 const ACTION_REWRITE = 'rewrite'
 
-class AssetHandler {
+export class AssetHandler {
   constructor(options) {
     const concurrency = options.concurrency || ASSET_DOWNLOAD_CONCURRENCY
     debug('Using asset download concurrency of %d', concurrency)
@@ -30,6 +36,7 @@ class AssetHandler {
     this.filesWritten = 0
     this.queueSize = 0
     this.maxRetries = options.maxRetries || ASSET_DOWNLOAD_MAX_RETRIES
+    this.retryDelayMs = options.retryDelayMs
     this.queue = options.queue || new PQueue({concurrency})
 
     this.rejectedError = null
@@ -58,7 +65,7 @@ class AssetHandler {
 
   // Called when we want to download all assets to local filesystem and rewrite documents to hold
   // placeholder asset references (_sanityAsset: 'image@file:///local/path')
-  rewriteAssets = miss.through.obj(async (doc, enc, callback) => {
+  rewriteAssets = throughObj(async (doc, enc, callback) => {
     if (['sanity.imageAsset', 'sanity.fileAsset'].includes(doc._type)) {
       const type = doc._type === 'sanity.imageAsset' ? 'image' : 'file'
       const filePath = `${type}s/${generateFilename(doc._id)}`
@@ -73,7 +80,7 @@ class AssetHandler {
 
   // Called in the case where we don't _want_ assets, so basically just remove all asset documents
   // as well as references to assets (*.asset._ref ^= (image|file)-)
-  stripAssets = miss.through.obj(async (doc, enc, callback) => {
+  stripAssets = throughObj(async (doc, enc, callback) => {
     if (['sanity.imageAsset', 'sanity.fileAsset'].includes(doc._type)) {
       callback()
       return
@@ -84,7 +91,7 @@ class AssetHandler {
 
   // Called when we are using raw export mode along with `assets: false`, where we simply
   // want to skip asset documents but retain asset references (useful for data mangling)
-  skipAssets = miss.through.obj((doc, enc, callback) => {
+  skipAssets = throughObj((doc, enc, callback) => {
     const isAsset = ['sanity.imageAsset', 'sanity.fileAsset'].includes(doc._type)
     if (isAsset) {
       callback()
@@ -94,9 +101,9 @@ class AssetHandler {
     callback(null, doc)
   })
 
-  noop = miss.through.obj((doc, enc, callback) => callback(null, doc))
+  noop = throughObj((doc, enc, callback) => callback(null, doc))
 
-  queueAssetDownload(assetDoc, dstPath, type) {
+  queueAssetDownload(assetDoc, dstPath) {
     if (!assetDoc.url) {
       debug('Asset document "%s" does not have a URL property, skipping', assetDoc._id)
       return
@@ -140,6 +147,8 @@ class AssetHandler {
             // Don't retry on client errors
             break
           }
+
+          await delay(this.retryDelayMs || DEFAULT_RETRY_DELAY)
         }
       }
       throw dlError
@@ -164,18 +173,23 @@ class AssetHandler {
     }
 
     /* eslint-disable no-sync */
-    mkdirSync(path.join(this.tmpDir, 'files'), {recursive: true})
-    mkdirSync(path.join(this.tmpDir, 'images'), {recursive: true})
+    mkdirSync(joinPath(this.tmpDir, 'files'), {recursive: true})
+    mkdirSync(joinPath(this.tmpDir, 'images'), {recursive: true})
     /* eslint-enable no-sync */
     this.assetDirsCreated = true
   }
 
   getAssetRequestOptions(assetDoc) {
     const token = this.client.config().token
-    const headers = {'User-Agent': `${pkg.name}@${pkg.version}`}
+    const headers = {'User-Agent': getUserAgent()}
     const isImage = assetDoc._type === 'sanity.imageAsset'
 
-    const url = parseUrl(assetDoc.url, true)
+    const url = URL.parse(assetDoc.url)
+    // If we can't parse it, return as-is
+    if (!url) {
+      return {url: assetDoc.url, headers}
+    }
+
     if (
       isImage &&
       token &&
@@ -184,10 +198,10 @@ class AssetHandler {
         url.host === 'localhost:43216')
     ) {
       headers.Authorization = `Bearer ${token}`
-      url.query = {...(url.query || {}), dlRaw: 'true'}
+      url.searchParams.set('dlRaw', 'true')
     }
 
-    return {url: formatUrl(url), headers}
+    return {url: url.toString(), headers}
   }
 
   // eslint-disable-next-line max-statements
@@ -200,7 +214,10 @@ class AssetHandler {
 
     let stream
     try {
-      stream = await requestStream(options)
+      stream = await requestStream({
+        maxRetries: 0, // We handle retries ourselves in queueAssetDownload
+        ...options,
+      })
     } catch (err) {
       const message = 'Failed to create asset stream'
       if (typeof err.message === 'string') {
@@ -239,7 +256,7 @@ class AssetHandler {
     this.maybeCreateAssetDirs()
 
     debug('Asset stream ready, writing to filesystem at %s', dstPath)
-    const tmpPath = path.join(this.tmpDir, dstPath)
+    const tmpPath = joinPath(this.tmpDir, dstPath)
     let sha1 = ''
     let md5 = ''
     let size = 0
@@ -381,58 +398,61 @@ function generateFilename(assetId) {
   return asset ? `${asset}.${extension}` : `${assetId}.bin`
 }
 
-function writeHashedStream(filePath, stream) {
+async function writeHashedStream(filePath, stream) {
   let size = 0
-  const md5 = crypto.createHash('md5')
-  const sha1 = crypto.createHash('sha1')
+  const md5 = createHash('md5')
+  const sha1 = createHash('sha1')
 
-  const hasher = miss.through((chunk, enc, cb) => {
+  const hasher = through((chunk, enc, cb) => {
     size += chunk.length
     md5.update(chunk)
     sha1.update(chunk)
     cb(null, chunk)
   })
 
-  return new Promise((resolve, reject) =>
-    miss.pipe(stream, hasher, createWriteStream(filePath), (err) => {
-      if (err) {
-        reject(err)
-        return
-      }
-
-      resolve({
-        size,
-        sha1: sha1.digest('hex'),
-        md5: md5.digest('hex'),
-      })
-    }),
-  )
+  await pipeline(stream, hasher, createWriteStream(filePath))
+  return {
+    size,
+    sha1: sha1.digest('hex'),
+    md5: md5.digest('hex'),
+  }
 }
 
 function tryGetErrorFromStream(stream) {
   return new Promise((resolve, reject) => {
+    const chunks = []
     let receivedData = false
 
-    miss.pipe(stream, miss.concat(parse), (err) => {
-      if (err) {
-        reject(err)
-      } else if (!receivedData) {
-        // Resolve with null if no data was received, to let the caller
-        // know we couldn't parse the error.
-        resolve(null)
-      }
+    stream.on('data', (chunk) => {
+      receivedData = true
+      chunks.push(chunk)
     })
 
-    function parse(body) {
-      receivedData = true
+    stream.on('end', () => {
+      if (!receivedData) {
+        resolve(null)
+        return
+      }
+
+      const body = Buffer.concat(chunks)
       try {
         const parsed = JSON.parse(body.toString('utf8'))
         resolve(parsed.message || parsed.error || null)
-      } catch (err) {
+      } catch {
         resolve(body.toString('utf8').slice(0, 16000))
       }
-    }
+    })
+
+    stream.on('error', reject)
   })
 }
 
-module.exports = AssetHandler
+function omit(obj, keys) {
+  const copy = {}
+  Object.entries(obj).forEach(([key, value]) => {
+    if (!keys.includes(key)) {
+      copy[key] = value
+    }
+  })
+  return copy
+}

@@ -1,11 +1,10 @@
-const defaults = require('lodash/defaults')
-const {
-  DOCUMENT_STREAM_MAX_RETRIES,
+import {
   ASSET_DOWNLOAD_MAX_RETRIES,
-  REQUEST_READ_TIMEOUT,
-  MODE_STREAM,
+  DOCUMENT_STREAM_MAX_RETRIES,
   MODE_CURSOR,
-} = require('./constants')
+  MODE_STREAM,
+  REQUEST_READ_TIMEOUT,
+} from './constants.js'
 
 const clientMethods = ['getUrl', 'config']
 const booleanFlags = ['assets', 'raw', 'compress', 'drafts']
@@ -24,8 +23,8 @@ const exportDefaults = {
   transformDocument: (doc) => doc,
 }
 
-function validateOptions(opts) {
-  const options = defaults({}, opts, exportDefaults)
+export function validateOptions(opts) {
+  const options = {...exportDefaults, ...opts}
 
   const resources = [options.dataset, options.mediaLibraryId].filter(
     (resource) => typeof resource === 'string' && resource.length !== 0,
@@ -112,5 +111,3 @@ function validateOptions(opts) {
 
   return options
 }
-
-module.exports = validateOptions

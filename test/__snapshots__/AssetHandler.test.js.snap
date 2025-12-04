@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`asset handler can remove asset documents: Nothing removed in assetless doc 1`] = `
+exports[`asset handler > can remove asset documents > Nothing removed in assetless doc 1`] = `
 {
   "_id": "plain",
   "_type": "bike",
@@ -8,7 +8,7 @@ exports[`asset handler can remove asset documents: Nothing removed in assetless 
 }
 `;
 
-exports[`asset handler can remove asset documents: doc1 with no image asset 1`] = `
+exports[`asset handler > can remove asset documents > doc1 with no image asset 1`] = `
 {
   "_id": "doc1",
   "_type": "bike",
@@ -16,7 +16,7 @@ exports[`asset handler can remove asset documents: doc1 with no image asset 1`] 
 }
 `;
 
-exports[`asset handler can remove asset documents: doc2 with no image asset 1`] = `
+exports[`asset handler > can remove asset documents > doc2 with no image asset 1`] = `
 {
   "_id": "doc2",
   "_type": "bike",
@@ -24,7 +24,7 @@ exports[`asset handler can remove asset documents: doc2 with no image asset 1`] 
 }
 `;
 
-exports[`asset handler can remove asset documents: doc3 with no image asset 1`] = `
+exports[`asset handler > can remove asset documents > doc3 with no image asset 1`] = `
 {
   "_id": "doc3",
   "_type": "bike",
@@ -32,7 +32,7 @@ exports[`asset handler can remove asset documents: doc3 with no image asset 1`] 
 }
 `;
 
-exports[`asset handler can rewrite documents / queue downloads: Nothing rewritten if pattern doesnt match Sanity asset 1`] = `
+exports[`asset handler > can rewrite documents / queue downloads > Nothing rewritten if pattern doesnt match Sanity asset 1`] = `
 {
   "_id": "refsDatMuxAsset",
   "_type": "bike",
@@ -45,7 +45,7 @@ exports[`asset handler can rewrite documents / queue downloads: Nothing rewritte
 }
 `;
 
-exports[`asset handler can rewrite documents / queue downloads: Nothing rewritten in assetless doc 1`] = `
+exports[`asset handler > can rewrite documents / queue downloads > Nothing rewritten in assetless doc 1`] = `
 {
   "_id": "plain",
   "_type": "bike",
@@ -61,7 +61,7 @@ exports[`asset handler can rewrite documents / queue downloads: Nothing rewritte
 }
 `;
 
-exports[`asset handler can rewrite documents / queue downloads: Rewritten asset for doc1 1`] = `
+exports[`asset handler > can rewrite documents / queue downloads > Rewritten asset for doc1 1`] = `
 {
   "_id": "doc1",
   "_type": "bike",
@@ -78,7 +78,7 @@ exports[`asset handler can rewrite documents / queue downloads: Rewritten asset 
 }
 `;
 
-exports[`asset handler can rewrite documents / queue downloads: Rewritten asset for doc2 1`] = `
+exports[`asset handler > can rewrite documents / queue downloads > Rewritten asset for doc2 1`] = `
 {
   "_id": "doc2",
   "_type": "bike",
@@ -90,7 +90,7 @@ exports[`asset handler can rewrite documents / queue downloads: Rewritten asset 
 }
 `;
 
-exports[`asset handler can rewrite documents / queue downloads: Rewritten asset for doc3 1`] = `
+exports[`asset handler > can rewrite documents / queue downloads > Rewritten asset for doc3 1`] = `
 {
   "_id": "doc3",
   "_type": "bike",

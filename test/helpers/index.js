@@ -1,15 +1,11 @@
-const os = require('os')
-const {join: joinPath, dirname} = require('path')
-const {readdir, readFile} = require('fs/promises')
-const tar = require('tar')
-const stringToStream = require('string-to-stream')
-const {
-  expect,
-  jest: {fn: jestFn},
-} = require('@jest/globals')
-const AssetHandler = require('../../src/AssetHandler')
-const fs = require('fs')
-const path = require('path')
+import {readdir, readFile} from 'node:fs/promises'
+import {tmpdir} from 'node:os'
+import {dirname, join as joinPath} from 'node:path'
+
+import {x as extract} from 'tar'
+import {expect} from 'vitest'
+
+import {AssetHandler} from '../../src/AssetHandler.js'
 
 const getMockClient = () => ({
   config: () => ({projectId: '__fixtures__', dataset: '__test__'}),
@@ -17,48 +13,37 @@ const getMockClient = () => ({
     query.endsWith('._type') ? `sanity.imageAsset` : `http://localhost:32323/${params.id}.jpg`,
 })
 
-const getMockArchive = () => ({append: jestFn(), abort: jestFn()})
-
-const getMockQueue = () => {
-  const ops = []
-  return {
-    add: (task) => ops.push(task),
-    __size: () => ops.length,
-    __run: () => ops.forEach((fn) => fn()),
-  }
-}
-
-const arrayToStream = (docs) => stringToStream(docs.map((doc) => JSON.stringify(doc)).join('\n'))
-
-const ndjsonToArray = (ndjson) =>
-  ndjson
+export function ndjsonToArray(ndjson) {
+  return ndjson
     .toString('utf8')
     .split('\n')
     .filter(Boolean)
     .map((line) => JSON.parse(line))
+}
 
-const getAssetHandler = () =>
-  new AssetHandler({
+export function getAssetHandler() {
+  return new AssetHandler({
     prefix: 'test',
     client: getMockClient(),
-    tmpDir: joinPath(os.tmpdir(), 'asset-handler-tests', `${Date.now()}`),
+    tmpDir: joinPath(tmpdir(), 'asset-handler-tests', `${Date.now()}`),
   })
+}
 
-const untarExportedFile = async (outDir, filepath) => {
-  await tar.x({C: outDir, f: filepath})
+export async function untarExportedFile(outDir, filepath) {
+  await extract({C: outDir, f: filepath})
 
   // Attempt to find the export directory within the untarred files
-  const exportDir = fs.readdirSync(outDir).find((dir) => dir.includes('-export-'))
+  const exportDir = (await readdir(outDir)).find((dir) => dir.includes('-export-'))
   if (!exportDir) {
     throw new Error(`Expected export dir not found in ${outDir}`)
   }
 
-  return path.join(outDir, exportDir)
+  return joinPath(outDir, exportDir)
 }
 
-async function assertContents(fileName, content) {
+export async function assertContents(fileName, content) {
   const cwd = dirname(fileName)
-  await tar.x({
+  await extract({
     file: fileName,
     gzip: true,
     cwd,
@@ -140,15 +125,4 @@ async function readJson(filePath) {
       console.error(`Failed to read JSON file at ${filePath}`)
       throw err
     })
-}
-
-module.exports = {
-  assertContents,
-  getAssetHandler,
-  getMockClient,
-  getMockArchive,
-  getMockQueue,
-  arrayToStream,
-  ndjsonToArray,
-  untarExportedFile,
 }

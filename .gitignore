@@ -14,3 +14,6 @@
 # Dev-fixtures
 moviedb.ndjson
 dist
+
+# Test run outputs
+test/testruns/*
