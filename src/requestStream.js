@@ -7,7 +7,7 @@ import {
   REQUEST_READ_TIMEOUT,
 } from './constants.js'
 import {debug} from './debug.js'
-import {delay} from './util/delay'
+import {delay} from './util/delay.js'
 import {extractFirstError} from './util/extractFirstError.js'
 import {tryThrowFriendlyError} from './util/friendlyError.js'
 
