@@ -1,13 +1,23 @@
 import {getUserAgent} from './getUserAgent.js'
+import {getSource} from './options.js'
 import {requestStream} from './requestStream.js'
+import type {ExportSource, NormalizedExportOptions, ResponseStream} from './types.js'
 
-export function getDocumentsStream(options) {
+type GetDocumentStreamOptions = Partial<NormalizedExportOptions> &
+  Pick<
+    NormalizedExportOptions,
+    'client' | 'types' | 'maxRetries' | 'retryDelayMs' | 'readTimeout'
+  > &
+  ExportSource
+
+export function getDocumentsStream(options: GetDocumentStreamOptions): Promise<ResponseStream> {
   // Sanity client doesn't handle streams natively since we want to support node/browser
   // with same API. We're just using it here to get hold of URLs and tokens.
+  const source = getSource(options)
   const baseUrl = options.client.getUrl(
-    options.dataset
-      ? `/data/export/${options.dataset}`
-      : `/media-libraries/${options.mediaLibraryId}/export`,
+    source.type === 'dataset'
+      ? `/data/export/${source.id}`
+      : `/media-libraries/${source.id}/export`,
   )
 
   const url = new URL(baseUrl)
@@ -16,7 +26,7 @@ export function getDocumentsStream(options) {
   }
 
   const token = options.client.config().token
-  const headers = {
+  const headers: Record<string, string> = {
     'User-Agent': getUserAgent(),
     ...(token ? {Authorization: `Bearer ${token}`} : {}),
   }
@@ -25,7 +35,7 @@ export function getDocumentsStream(options) {
     url: url.toString(),
     headers,
     maxRetries: options.maxRetries,
-    retryDelayMs: options.retryDelayMs,
+    ...(options.retryDelayMs !== undefined ? {retryDelayMs: options.retryDelayMs} : {}),
     readTimeout: options.readTimeout,
   })
 }

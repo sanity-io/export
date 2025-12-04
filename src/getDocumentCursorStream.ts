@@ -1,15 +1,24 @@
-import {Transform} from 'node:stream'
+import {Transform, type TransformCallback} from 'node:stream'
 
 import {debug} from './debug.js'
 import {getUserAgent} from './getUserAgent.js'
 import {requestStream} from './requestStream.js'
+import type {NormalizedExportOptions, ResponseStream} from './types.js'
+import {getSource} from './options.js'
 
 // same regex as split2 is using by default: https://github.com/mcollina/split2/blob/53432f54bd5bf422bd55d91d38f898b6c9496fc1/index.js#L86
 const splitRegex = /\r?\n/
 
-export async function getDocumentCursorStream(options) {
+interface CursorChunk {
+  nextCursor?: string
+  _id?: string
+}
+
+export async function getDocumentCursorStream(
+  options: NormalizedExportOptions,
+): Promise<Transform> {
   let streamsInflight = 0
-  function decrementInflight(stream) {
+  function decrementInflight(stream: Transform): void {
     streamsInflight--
     if (streamsInflight === 0) {
       stream.end()
@@ -17,25 +26,30 @@ export async function getDocumentCursorStream(options) {
   }
 
   const stream = new Transform({
-    async transform(chunk, encoding, callback) {
-      if (encoding !== 'buffer' && encoding !== 'string') {
+    transform(
+      this: Transform,
+      chunk: Buffer,
+      encoding: BufferEncoding,
+      callback: TransformCallback,
+    ) {
+      if (encoding !== ('buffer' as BufferEncoding) && encoding !== ('string' as BufferEncoding)) {
         callback(null, chunk)
         return
       }
       this.push(chunk, encoding)
 
-      let parsedChunk = null
+      let parsedChunk: CursorChunk | null = null
       for (const chunkStr of chunk.toString().split(splitRegex)) {
         if (chunkStr.trim() === '') {
           continue
         }
 
         try {
-          parsedChunk = JSON.parse(chunkStr)
-        } catch (err) {
+          parsedChunk = JSON.parse(chunkStr) as CursorChunk
+        } catch {
           // Ignore JSON parse errors
           // this can happen if the chunk is not a JSON object. We just pass it through and let the caller handle it.
-          debug('Failed to parse JSON chunk, ignoring', err, chunkStr)
+          debug('Failed to parse JSON chunk, ignoring', chunkStr)
         }
 
         if (
@@ -48,9 +62,10 @@ export async function getDocumentCursorStream(options) {
           debug('Got next cursor "%s", fetching next stream', parsedChunk.nextCursor)
           streamsInflight++
 
-          const reqStream = await startStream(options, parsedChunk.nextCursor)
-          reqStream.on('end', () => decrementInflight(this))
-          reqStream.pipe(this, {end: false})
+          void startStream(options, parsedChunk.nextCursor).then((reqStream) => {
+            reqStream.on('end', () => decrementInflight(this))
+            reqStream.pipe(this, {end: false})
+          })
         }
       }
 
@@ -65,11 +80,15 @@ export async function getDocumentCursorStream(options) {
   return stream
 }
 
-function startStream(options, nextCursor) {
+function startStream(
+  options: NormalizedExportOptions,
+  nextCursor: string,
+): Promise<ResponseStream> {
+  const source = getSource(options)
   const baseUrl = options.client.getUrl(
-    options.dataset
-      ? `/data/export/${options.dataset}`
-      : `/media-libraries/${options.mediaLibraryId}/export`,
+    source.type === 'dataset'
+      ? `/data/export/${source.id}`
+      : `/media-libraries/${source.id}/export`,
   )
 
   const url = new URL(baseUrl)
@@ -79,7 +98,7 @@ function startStream(options, nextCursor) {
     url.searchParams.set('types', options.types.join())
   }
   const token = options.client.config().token
-  const headers = {
+  const headers: Record<string, string> = {
     'User-Agent': getUserAgent(),
     ...(token ? {Authorization: `Bearer ${token}`} : {}),
   }
@@ -90,7 +109,7 @@ function startStream(options, nextCursor) {
     url: url.toString(),
     headers,
     maxRetries: options.maxRetries,
-    retryDelayMs: options.retryDelayMs,
+    ...(options.retryDelayMs !== undefined ? {retryDelayMs: options.retryDelayMs} : {}),
     readTimeout: options.readTimeout,
   }).then((res) => {
     debug('Got stream with HTTP %d', res.statusCode)

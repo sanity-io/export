@@ -2,7 +2,7 @@ import {createWriteStream} from 'node:fs'
 import {mkdir} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join as joinPath} from 'node:path'
-import {PassThrough} from 'node:stream'
+import {PassThrough, type Writable} from 'node:stream'
 import {finished, pipeline} from 'node:stream/promises'
 import {deprecate} from 'node:util'
 import {constants as zlib} from 'node:zlib'
@@ -11,8 +11,9 @@ import archiver from 'archiver'
 import {JsonStreamStringify} from 'json-stream-stringify'
 import {rimraf} from 'rimraf'
 
+import {isWritableStream, split, throughObj} from './util/streamHelpers.js'
 import {AssetHandler} from './AssetHandler.js'
-import {DOCUMENT_STREAM_DEBUG_INTERVAL, MODE_CURSOR, MODE_STREAM} from './constants.js'
+import {DOCUMENT_STREAM_DEBUG_INTERVAL, MODE_STREAM} from './constants.js'
 import {debug} from './debug.js'
 import {filterDocuments} from './filterDocuments.js'
 import {filterDocumentTypes} from './filterDocumentTypes.js'
@@ -22,14 +23,34 @@ import {logFirstChunk} from './logFirstChunk.js'
 import {rejectOnApiError} from './rejectOnApiError.js'
 import {stringifyStream} from './stringifyStream.js'
 import {tryParseJson} from './tryParseJson.js'
-import {isWritableStream, split, throughObj} from './util/streamHelpers.js'
-import {validateOptions} from './validateOptions.js'
+import type {
+  ExportOptions,
+  NormalizedExportOptions,
+  ExportResult,
+  ResponseStream,
+  SanityDocument,
+} from './types.js'
+import {getSource, validateOptions} from './options.js'
 
-const noop = () => null
+const noop = (): null => null
 
-export async function exportDataset(opts) {
+/**
+ * Export the dataset with the given options.
+ *
+ * @param opts - Export options
+ * @returns The export result
+ * @public
+ */
+export async function exportDataset(
+  opts: ExportOptions & {outputPath: Writable},
+): Promise<ExportResult<Writable>>
+export async function exportDataset(
+  opts: ExportOptions & {outputPath: string},
+): Promise<ExportResult<string>>
+export async function exportDataset(opts: ExportOptions): Promise<ExportResult>
+export async function exportDataset(opts: ExportOptions): Promise<ExportResult> {
   const options = validateOptions(opts)
-  const onProgress = options.onProgress || noop
+  const onProgress = options.onProgress ?? noop
   const archive = archiver('tar', {
     gzip: true,
     gzipOptions: {
@@ -48,66 +69,69 @@ export async function exportDataset(opts) {
     .replace(/[^a-z0-9]/gi, '-')
     .toLowerCase()
 
-  const prefix = `${opts.dataset ?? opts.mediaLibraryId}-export-${slugDate}`
+  const source = getSource(opts)
+  const prefix = `${source.id}-export-${slugDate}`
   const tmpDir = joinPath(tmpdir(), prefix)
   await mkdir(tmpDir, {recursive: true})
   const dataPath = joinPath(tmpDir, 'data.ndjson')
   const assetsPath = joinPath(tmpDir, 'assets.json')
 
   const cleanup = () =>
-    rimraf(tmpDir).catch((err) => {
-      debug(`Error while cleaning up temporary files: ${err.message}`)
+    rimraf(tmpDir).catch((err: unknown) => {
+      debug(`Error while cleaning up temporary files: ${err instanceof Error ? err.message : err}`)
+      return false
     })
 
   const assetHandler = new AssetHandler({
     client: options.client,
     tmpDir,
     prefix,
-    concurrency: options.assetConcurrency,
+    ...(options.assetConcurrency !== undefined && {concurrency: options.assetConcurrency}),
+    ...(options.retryDelayMs !== undefined && {retryDelayMs: options.retryDelayMs}),
     maxRetries: options.maxAssetRetries,
-    retryDelayMs: options.retryDelayMs,
   })
 
   debug('Downloading assets (temporarily) to %s', tmpDir)
-  debug('Downloading to %s', options.outputPath === '-' ? 'stdout' : options.outputPath)
+  debug('Downloading to %s', isWritableStream(options.outputPath) ? 'stream' : options.outputPath)
 
-  let outputStream
-  if (isWritableStream(options.outputPath)) {
-    outputStream = options.outputPath
-  } else {
-    outputStream =
-      options.outputPath === '-' ? process.stdout : createWriteStream(options.outputPath)
-  }
+  const outputStream: Writable = isWritableStream(options.outputPath)
+    ? options.outputPath
+    : createWriteStream(options.outputPath)
 
   let assetStreamHandler = assetHandler.noop
   if (!options.raw) {
     assetStreamHandler = options.assets ? assetHandler.rewriteAssets : assetHandler.stripAssets
   }
 
-  let resolve
-  let reject
-  const result = new Promise((res, rej) => {
+  let resolve: (value: ExportResult) => void
+  let reject: (reason: Error) => void
+  const result = new Promise<ExportResult>((res, rej) => {
     resolve = res
     reject = rej
   })
 
   finished(archive)
-    .then(async () => {
+    .then(() => {
       debug('Archive finished')
     })
-    .catch(async (archiveErr) => {
-      debug('Archiving errored: %s', archiveErr.stack)
+    .catch(async (archiveErr: unknown) => {
+      const err = archiveErr instanceof Error ? archiveErr : new Error(String(archiveErr))
+      debug('Archiving errored: %s', err.stack)
       await cleanup()
-      reject(archiveErr)
+      reject(err)
     })
 
   debug('Getting dataset export stream, mode: "%s"', options.mode)
   onProgress({step: 'Exporting documents...'})
 
   let documentCount = 0
-  let lastDocumentID = null
+  let lastDocumentID: string | null = null
   let lastReported = Date.now()
-  const reportDocumentCount = (doc, enc, cb) => {
+  const reportDocumentCount = (
+    doc: SanityDocument,
+    _enc: BufferEncoding,
+    cb: (err: Error | null, doc: SanityDocument) => void,
+  ): void => {
     ++documentCount
 
     const now = Date.now()
@@ -130,15 +154,15 @@ export async function exportDataset(opts) {
   }
 
   const inputStream = await getDocumentInputStream(options)
-  if (inputStream.statusCode) {
+  if ('statusCode' in inputStream) {
     debug('Got HTTP %d', inputStream.statusCode)
   }
-  if (inputStream.headers) {
+  if ('headers' in inputStream) {
     debug('Response headers: %o', inputStream.headers)
   }
 
-  let debugTimer = null
-  function scheduleDebugTimer() {
+  let debugTimer: ReturnType<typeof setTimeout> | null = null
+  function scheduleDebugTimer(): void {
     debugTimer = setTimeout(() => {
       debug('Still streaming documents', {
         documentCount,
@@ -152,28 +176,24 @@ export async function exportDataset(opts) {
 
   scheduleDebugTimer()
 
-  const filterTransform = throughObj((doc, _enc, callback) => {
-    if (!options.filterDocument) {
-      return callback(null, doc)
-    }
-
+  const filterTransform = throughObj((doc: SanityDocument, _enc: BufferEncoding, callback) => {
     try {
       const include = options.filterDocument(doc)
-      return include ? callback(null, doc) : callback()
+      if (include) {
+        callback(null, doc)
+      } else {
+        callback()
+      }
     } catch (err) {
-      return callback(err)
+      callback(err instanceof Error ? err : new Error(String(err)))
     }
   })
 
-  const transformTransform = throughObj((doc, _enc, callback) => {
-    if (!options.transformDocument) {
-      return callback(null, doc)
-    }
-
+  const transformTransform = throughObj((doc: SanityDocument, _enc: BufferEncoding, callback) => {
     try {
-      return callback(null, options.transformDocument(doc))
+      callback(null, options.transformDocument(doc))
     } catch (err) {
-      return callback(err)
+      callback(err instanceof Error ? err : new Error(String(err)))
     }
   })
 
@@ -183,7 +203,7 @@ export async function exportDataset(opts) {
   const jsonStream = new PassThrough()
   finished(jsonStream)
     .then(() => debug('JSON stream finished'))
-    .catch((err) => reject(err))
+    .catch((err: unknown) => reject(err instanceof Error ? err : new Error(String(err))))
 
   pipeline(
     inputStream,
@@ -198,10 +218,10 @@ export async function exportDataset(opts) {
     reportTransform,
     stringifyStream(),
     jsonStream,
-  ).catch((err) => {
+  ).catch((err: unknown) => {
     if (debugTimer !== null) clearTimeout(debugTimer)
     debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
-    reject(err)
+    reject(err instanceof Error ? err : new Error(String(err)))
   })
 
   pipeline(jsonStream, createWriteStream(dataPath))
@@ -264,29 +284,31 @@ export async function exportDataset(opts) {
       } catch (assetErr) {
         clearInterval(progressInterval)
         await cleanup()
-        reject(assetErr)
+        reject(assetErr instanceof Error ? assetErr : new Error(String(assetErr)))
         return
       }
 
       // Add all downloaded assets to archive
-      archive.directory(joinPath(tmpDir, 'files'), `${prefix}/files`, {store: true})
-      archive.directory(joinPath(tmpDir, 'images'), `${prefix}/images`, {store: true})
+      archive.directory(joinPath(tmpDir, 'files'), `${prefix}/files`)
+      archive.directory(joinPath(tmpDir, 'images'), `${prefix}/images`)
 
       debug('Finalizing archive, flushing streams')
       onProgress({step: 'Adding assets to archive...'})
       await archive.finalize()
     })
-    .catch(async (err) => {
+    .catch((err: unknown) => {
       if (debugTimer !== null) clearTimeout(debugTimer)
       debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
-      reject(err)
+      void cleanup().then(() => {
+        reject(err instanceof Error ? err : new Error(String(err)))
+      })
     })
 
   pipeline(archive, outputStream)
     .then(() => onComplete())
     .catch(onComplete)
 
-  async function onComplete(err) {
+  async function onComplete(err?: Error): Promise<void> {
     onProgress({step: 'Clearing temporary files...'})
     await cleanup()
 
@@ -308,15 +330,34 @@ export async function exportDataset(opts) {
   return result
 }
 
-function getDocumentInputStream(options) {
-  if (options.mode === MODE_STREAM) {
-    return getDocumentsStream(options)
-  }
-  if (options.mode === MODE_CURSOR) {
-    return getDocumentCursorStream(options)
-  }
+function getDocumentInputStream(options: NormalizedExportOptions): Promise<ResponseStream> {
+  return options.mode === MODE_STREAM
+    ? getDocumentsStream(options)
+    : getDocumentCursorStream(options)
+}
 
-  throw new Error(`Invalid mode: ${options.mode}`)
+type MediaLibraryExportOptions = Omit<ExportOptions, 'dataset' | 'mediaLibraryId'> & {
+  mediaLibraryId: string
+}
+
+/**
+ * Export the media library with the given `mediaLibraryId`.
+ *
+ * @param options - Export options
+ * @returns The export result
+ * @public
+ */
+export async function exportMediaLibrary(
+  options: MediaLibraryExportOptions & {outputPath: Writable},
+): Promise<ExportResult<Writable>>
+export async function exportMediaLibrary(
+  options: MediaLibraryExportOptions & {outputPath: string},
+): Promise<ExportResult<string>>
+export async function exportMediaLibrary(options: MediaLibraryExportOptions): Promise<ExportResult>
+export async function exportMediaLibrary(
+  options: MediaLibraryExportOptions,
+): Promise<ExportResult> {
+  return exportDataset(options as ExportOptions)
 }
 
 /**
@@ -327,7 +368,7 @@ function getDocumentInputStream(options) {
  * @public
  */
 export default deprecate(
-  function deprecatedExport(opts) {
+  function deprecatedExport(opts: ExportOptions): Promise<ExportResult> {
     return exportDataset(opts)
   },
   `Default export of "@sanity/export" is deprecated and will be removed in a future release. Please use the named "exportDataset" function instead.`,

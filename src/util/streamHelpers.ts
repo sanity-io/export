@@ -1,63 +1,80 @@
-import {Transform} from 'node:stream'
+import {Transform, type TransformCallback, type Writable} from 'node:stream'
 
-export function through(transformFn) {
+type TransformFunction = (
+  chunk: Buffer,
+  encoding: BufferEncoding,
+  callback: TransformCallback,
+) => void
+
+type TransformObjFunction<T, R> = (
+  chunk: T,
+  encoding: BufferEncoding,
+  callback: TransformCallback,
+) => R
+
+export function through(transformFn: TransformFunction): Transform {
   return new Transform({
-    transform(chunk, encoding, callback) {
+    transform(chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback) {
       transformFn(chunk, encoding, callback)
     },
   })
 }
 
-export function throughObj(transformFn) {
+export function throughObj<T = unknown, R = void>(
+  transformFn: TransformObjFunction<T, R>,
+): Transform {
   return new Transform({
     objectMode: true,
-    transform(chunk, encoding, callback) {
+    transform(chunk: T, encoding: BufferEncoding, callback: TransformCallback) {
       transformFn(chunk, encoding, callback)
     },
   })
 }
 
-export function isWritableStream(val) {
+export function isWritableStream(val: unknown): val is Writable {
   return (
     val !== null &&
     typeof val === 'object' &&
+    'pipe' in val &&
     typeof val.pipe === 'function' &&
+    '_write' in val &&
     typeof val._write === 'function' &&
+    '_writableState' in val &&
     typeof val._writableState === 'object'
   )
 }
 
-export function concat(onData) {
-  const chunks = []
+export function concat(onData: (chunks: unknown[]) => void): Transform {
+  const chunks: unknown[] = []
   return new Transform({
     objectMode: true,
-    transform(chunk, encoding, callback) {
+    transform(chunk: unknown, _encoding: BufferEncoding, callback: TransformCallback) {
       chunks.push(chunk)
       callback()
     },
-    flush(callback) {
+    flush(callback: TransformCallback) {
       try {
         onData(chunks)
         callback()
       } catch (err) {
-        callback(err)
+        callback(err as Error)
       }
     },
   })
 }
 
-export const split = (transformFn) => {
+export function split(transformFn?: (line: string) => unknown): Transform {
   let buffer = ''
   const splitRegex = /\r?\n/
 
   return new Transform({
-    objectMode: !!transformFn,
-    transform(chunk, encoding, callback) {
+    objectMode: Boolean(transformFn),
+    transform(chunk: Buffer, _encoding: BufferEncoding, callback: TransformCallback) {
       buffer += chunk.toString()
       const lines = buffer.split(splitRegex)
 
       // Keep the last line in buffer as it might be incomplete
-      buffer = lines.pop() || ''
+      buffer = lines.pop() ?? ''
 
       for (const line of lines) {
         if (line.length === 0) continue
@@ -69,7 +86,7 @@ export const split = (transformFn) => {
               this.push(result)
             }
           } catch (err) {
-            callback(err)
+            callback(err as Error)
             return
           }
         } else {
@@ -78,7 +95,7 @@ export const split = (transformFn) => {
       }
       callback()
     },
-    flush(callback) {
+    flush(callback: TransformCallback) {
       if (buffer.length === 0) {
         callback()
         return
@@ -96,7 +113,7 @@ export const split = (transformFn) => {
         }
         callback()
       } catch (err) {
-        callback(err)
+        callback(err as Error)
       }
     },
   })

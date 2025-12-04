@@ -9,15 +9,25 @@ import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
 import {MODE_CURSOR} from '../src/constants.js'
 import deprecatedExport, {exportDataset} from '../src/export.js'
 import {assertContents} from './helpers/index.js'
+import type {SanityClientLike, SanityDocument} from '../src/types.js'
 
 const OUTPUT_ROOT_DIR = joinPath(os.tmpdir(), 'sanity-export-tests')
 
-const getMockClient = (port) => ({
-  getUrl: (urlPath) => `http://localhost:${port}${urlPath}`,
+const getMockClient = (port: number): SanityClientLike => ({
+  getUrl: (urlPath: string) => `http://localhost:${port}${urlPath}`,
   config: () => ({token: 'skSomeToken', projectId: 'projectId'}),
 })
 
-const getOptions = async ({port, maxRetries = 2, types, ...rest}) => {
+interface GetOptionsParams {
+  port: number
+  maxRetries?: number
+  types?: string[]
+  filterDocument?: (doc: SanityDocument) => boolean
+  transformDocument?: (doc: SanityDocument) => SanityDocument
+  [key: string]: unknown
+}
+
+const getOptions = async ({port, maxRetries = 2, types, ...rest}: GetOptionsParams) => {
   const randomPath = (Math.random() + 1).toString(36).substring(7)
   const outputDir = joinPath(OUTPUT_ROOT_DIR, randomPath)
   const outputPath = joinPath(outputDir, 'out.tar.gz')
@@ -33,10 +43,17 @@ const getOptions = async ({port, maxRetries = 2, types, ...rest}) => {
   }
 }
 
-const getServer = (port, onRequest) => {
+interface ServerHandle {
+  close: () => Promise<void>
+}
+
+const getServer = (
+  port: number,
+  onRequest: (req: http.IncomingMessage, res: http.ServerResponse) => void,
+): Promise<ServerHandle> => {
   const server = http.createServer(onRequest)
 
-  function close() {
+  function close(): Promise<void> {
     return new Promise((success, fail) => {
       server.close((err) => {
         if (err) {
@@ -61,7 +78,7 @@ afterAll(async () => {
 })
 
 describe('export', () => {
-  let server
+  let server: ServerHandle | null
 
   afterEach(async () => {
     if (server) {
@@ -72,7 +89,7 @@ describe('export', () => {
 
   test('skips system documents', async () => {
     const port = 43213
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end(
         JSON.stringify({
@@ -93,7 +110,28 @@ describe('export', () => {
 
   test('includes releases by default', async () => {
     const port = 43213
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.end(
+        JSON.stringify({
+          _id: '_.releases.radiant',
+          _type: 'system.release',
+          state: 'active',
+        }),
+      )
+    })
+    const options = await getOptions({port})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 1,
+      outputPath: /out\.tar\.gz$/,
+    })
+  })
+
+  test('includes releases when `drafts` is set to `true`', async () => {
+    const port = 43213
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end(
         JSON.stringify({
@@ -114,7 +152,7 @@ describe('export', () => {
 
   test('skips releases when drafts are excluded', async () => {
     const port = 43213
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end(
         JSON.stringify({
@@ -141,7 +179,7 @@ describe('export', () => {
       title: 'Please include me',
     }
 
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(
         JSON.stringify({
@@ -181,7 +219,7 @@ describe('export', () => {
         title: 'Goodbye, cruel world!',
       },
     ]
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(documents[0]))
       res.write('\n')
@@ -218,12 +256,13 @@ describe('export', () => {
     }
 
     server = await getServer(port, (req, res) => {
-      if (req.url.startsWith('/images')) {
+      const url = req.url || '/'
+      if (url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
         createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
       }
-      if (req.url.startsWith('/files')) {
+      if (url.startsWith('/files')) {
         res.writeHead(200, 'OK', {'Content-Type': 'text/plain'})
         createReadStream(joinPath(import.meta.dirname, 'fixtures', 'coffee.txt')).pipe(res)
         return
@@ -291,7 +330,8 @@ describe('export', () => {
 
     let attempt = 0
     server = await getServer(port, (req, res) => {
-      if (req.url.startsWith('/images')) {
+      const url = req.url || '/'
+      if (url.startsWith('/images')) {
         if (++attempt === 1) {
           res.writeHead(500, 'Internal Server Error', {'Content-Type': 'application/json'})
           res.end(JSON.stringify({error: 'Server error'}))
@@ -372,7 +412,8 @@ describe('export', () => {
     }
 
     server = await getServer(port, (req, res) => {
-      if (req.url.startsWith('/images')) {
+      const url = req.url || '/'
+      if (url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
         createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
@@ -410,7 +451,8 @@ describe('export', () => {
     }
 
     server = await getServer(port, (req, res) => {
-      if (req.url.startsWith('/images')) {
+      const url = req.url || '/'
+      if (url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
         createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
@@ -459,7 +501,8 @@ describe('export', () => {
     }
 
     server = await getServer(port, (req, res) => {
-      if (req.url.startsWith('/images')) {
+      const url = req.url || '/'
+      if (url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
         createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
         return
@@ -492,7 +535,7 @@ describe('export', () => {
 
   test('throws error if api responds with 5xx error consistently', async () => {
     const port = 43211
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(500, 'Internal Server Error', {'Content-Type': 'application/json'})
       res.end(
         JSON.stringify({
@@ -510,7 +553,7 @@ describe('export', () => {
 
   test('throws error if api responds with 400 error', async () => {
     const port = 43212
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(400, 'Bad Request', {'Content-Type': 'application/json'})
       res.end(
         JSON.stringify({
@@ -535,7 +578,7 @@ describe('export', () => {
       statusCode: 500,
     }
 
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(doc))
       res.end()
@@ -556,6 +599,7 @@ describe('export', () => {
   })
 
   test('export mode must be either cursor or stream', async () => {
+    // @ts-expect-error Testing invalid mode
     const options = await getOptions({mode: 'murg'})
     await expect(exportDataset(options)).rejects.toThrow(
       'options.mode must be either "stream" or "cursor", got "murg"',
@@ -588,7 +632,7 @@ describe('export', () => {
     ]
     server = await getServer(port, (req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
-      const url = new URL(req.url, `http://localhost:${port}`)
+      const url = new URL(req.url || '/', `http://localhost:${port}`)
       switch (url.searchParams.get('nextCursor')) {
         case '': {
           res.write(JSON.stringify(documents[0]))
@@ -622,7 +666,7 @@ describe('export', () => {
         }
 
         default: {
-          throw new Error(`Unexpected cursor: ${req.query.nextCursor}`)
+          throw new Error(`Unexpected cursor: ${url.searchParams.get('nextCursor')}`)
         }
       }
     })
@@ -662,7 +706,7 @@ describe('export', () => {
         title: 'Goodbye again, cruel world!',
       },
     ]
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       for (const document of documents) {
         res.write(JSON.stringify(document))
@@ -722,7 +766,7 @@ describe('export', () => {
         },
       },
     ]
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(documents[0]))
       res.write('\n')
@@ -751,7 +795,7 @@ describe('export', () => {
       title: 'Please include me',
     }
 
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(
         JSON.stringify({
@@ -787,7 +831,7 @@ describe('export', () => {
       title: 'What Was That',
     }
 
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(
         JSON.stringify({
@@ -801,7 +845,7 @@ describe('export', () => {
     })
     const options = await getOptions({
       port,
-      transformDocument: ({_id}) => ({_id: _id.toUpperCase()}),
+      transformDocument: ({_id}) => ({_id: _id.toUpperCase(), _type: 'foo'}),
     })
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -817,7 +861,7 @@ describe('export', () => {
 
   test('skips version documents when drafts is false', async () => {
     const port = 43213
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end(
         JSON.stringify({
@@ -859,7 +903,7 @@ describe('export', () => {
       state: 'active',
     }
 
-    server = await getServer(port, (req, res) => {
+    server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(regularDoc))
       res.write('\n')
@@ -895,23 +939,35 @@ describe('export', () => {
       documents: [regularDoc, draftDoc, versionDoc, releaseDoc],
     })
   })
-})
 
-describe('deprecations', () => {
   test('using default export works but gives deprecation warning (once)', async () => {
+    const port = 44321
+
     const warn = vitest.fn()
     process.on('warning', warn)
 
-    // Call twice to ensure warning is only emitted once
-    await expect(() => deprecatedExport({})).rejects.toThrow(/must be specified/)
-    await expect(() => deprecatedExport({})).rejects.toThrow(/must be specified/)
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.end()
+    })
+
+    const options = await getOptions({port})
+
+    /* eslint-disable @typescript-eslint/no-deprecated */
+    await expect(deprecatedExport(options)).resolves.toMatchObject({documentCount: 0})
+    await expect(deprecatedExport(options)).resolves.toMatchObject({documentCount: 0})
+    /* eslint-enable @typescript-eslint/no-deprecated */
 
     // Give the warning event a chance to fire
     await new Promise((resolve) => setImmediate(resolve))
 
     expect(warn).toHaveBeenCalledTimes(1)
 
-    const warning = warn.mock.calls[0][0]
+    const lastCall = warn.mock.calls[0] || []
+    expect(lastCall).toHaveLength(1)
+
+    const warning = lastCall.length > 0 && lastCall[0] instanceof Error ? lastCall[0] : undefined
+
     expect(warning).toHaveProperty('code', 'DEP_SANITY_EXPORT_DEFAULT')
     expect(warning).toHaveProperty(
       'message',
