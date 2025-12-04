@@ -14,7 +14,7 @@ import {
 import {debug} from './debug.js'
 import {getUserAgent} from './getUserAgent.js'
 import {requestStream} from './requestStream.js'
-import {delay} from './util/delay'
+import {delay} from './util/delay.js'
 import {through, throughObj} from './util/streamHelpers.js'
 
 const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
