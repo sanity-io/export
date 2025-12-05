@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [5.0.1](https://github.com/sanity-io/export/compare/v5.0.0...v5.0.1) (2025-12-05)
+
+### Bug Fixes
+
+- reintroduce default export, but deprecate ([#35](https://github.com/sanity-io/export/issues/35)) ([fa381d8](https://github.com/sanity-io/export/commit/fa381d8ceda7774abe45c5810ad2e1ba67bc0ed3))
+
 ## [5.0.0](https://github.com/sanity-io/export/compare/v4.0.2...v5.0.0) (2025-12-05)
 
 ### ⚠ BREAKING CHANGES
