@@ -4,10 +4,10 @@ import http from 'node:http'
 import os from 'node:os'
 import {join as joinPath} from 'node:path'
 
-import {afterAll, afterEach, describe, expect, test} from 'vitest'
+import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
 
 import {MODE_CURSOR} from '../src/constants.js'
-import {exportDataset} from '../src/export.js'
+import deprecatedExport, {exportDataset} from '../src/export.js'
 import {assertContents} from './helpers/index.js'
 
 const OUTPUT_ROOT_DIR = joinPath(os.tmpdir(), 'sanity-export-tests')
@@ -894,5 +894,29 @@ describe('export', () => {
     await assertContents(resultWithDrafts.outputPath, {
       documents: [regularDoc, draftDoc, versionDoc, releaseDoc],
     })
+  })
+})
+
+describe('deprecations', () => {
+  test('using default export works but gives deprecation warning (once)', async () => {
+    const warn = vitest.fn()
+    process.on('warning', warn)
+
+    // Call twice to ensure warning is only emitted once
+    await expect(() => deprecatedExport({})).rejects.toThrow(/must be specified/)
+    await expect(() => deprecatedExport({})).rejects.toThrow(/must be specified/)
+
+    // Give the warning event a chance to fire
+    await new Promise((resolve) => setImmediate(resolve))
+
+    expect(warn).toHaveBeenCalledTimes(1)
+
+    const warning = warn.mock.calls[0][0]
+    expect(warning).toHaveProperty('code', 'DEP_SANITY_EXPORT_DEFAULT')
+    expect(warning).toHaveProperty(
+      'message',
+      'Default export of "@sanity/export" is deprecated and will be removed in a future release. Please use the named "exportDataset" function instead.',
+    )
+    process.removeListener('warning', warn)
   })
 })

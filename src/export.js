@@ -4,6 +4,7 @@ import {tmpdir} from 'node:os'
 import {join as joinPath} from 'node:path'
 import {PassThrough} from 'node:stream'
 import {finished, pipeline} from 'node:stream/promises'
+import {deprecate} from 'node:util'
 import {constants as zlib} from 'node:zlib'
 
 import archiver from 'archiver'
@@ -317,3 +318,18 @@ function getDocumentInputStream(options) {
 
   throw new Error(`Invalid mode: ${options.mode}`)
 }
+
+/**
+ * Alias for `exportDataset`, for backwards compatibility.
+ * Use named `exportDataset` instead.
+ *
+ * @deprecated Default export is deprecated and will be removed in a future release. Use named "exportDataset" function instead.
+ * @public
+ */
+export default deprecate(
+  function deprecatedExport(opts) {
+    return exportDataset(opts)
+  },
+  `Default export of "@sanity/export" is deprecated and will be removed in a future release. Please use the named "exportDataset" function instead.`,
+  'DEP_SANITY_EXPORT_DEFAULT',
+)
