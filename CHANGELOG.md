@@ -5,6 +5,46 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [5.0.0](https://github.com/sanity-io/export/compare/v4.0.2...v5.0.0) (2025-12-05)
+
+### ⚠ BREAKING CHANGES
+
+- This module is now ESM-only and uses a named export (`exportDataset`) instead of default export.
+
+- refactor: use named imports for crypto
+
+- refactor: drop use of mississippi, split2
+
+- chore: move some dev-only dependencies to dev deps
+
+- chore: replace `string-to-stream` with `Readable.from()`
+
+- chore: report coverage on failures
+
+- chore: move test runs into separate subfolder that is gitignored
+
+- refactor: update dependencies, modern node streams, named exports, fix retrying
+
+- test: create testruns dir before usage
+
+- refactor: use `import.meta.dirname`
+
+- refactor: remove unused helper exports, clean up imports/exports
+
+- refactor: inline `createSafeJsonParser` (reduce dependencies)
+
+- refactor: improve readability of `requestStream`
+
+- refactor: use named imports consistently
+
+- chore: drop yaml fixtures in favor of json
+
+- fix: missing filename extension on import
+
+### Features
+
+- ESM-only, modernize, reduce dependencies ([#33](https://github.com/sanity-io/export/issues/33)) ([8912bd9](https://github.com/sanity-io/export/commit/8912bd94e923e58b360e46d98ec95e34d078b0cd))
+
 ## [4.0.2](https://github.com/sanity-io/export/compare/v4.0.1...v4.0.2) (2025-12-03)
 
 ### Bug Fixes
