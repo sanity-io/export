@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.0.1](https://github.com/sanity-io/export/compare/v6.0.0...v6.0.1) (2025-12-09)
+
+### Bug Fixes
+
+- allow `transformDocument` to return a partial document ([03f7789](https://github.com/sanity-io/export/commit/03f7789956d39ae96de47f3b28541ed0620418ce))
+
 ## [6.0.0](https://github.com/sanity-io/export/compare/v5.0.1...v6.0.0) (2025-12-09)
 
 ### ⚠ BREAKING CHANGES
