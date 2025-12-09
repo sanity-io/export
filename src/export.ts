@@ -114,9 +114,10 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
       debug('Archive finished')
     })
     .catch(async (archiveErr: unknown) => {
-      const err = archiveErr instanceof Error ? archiveErr : new Error(String(archiveErr))
+      const err = archiveErr instanceof Error ? archiveErr : new Error(`${archiveErr}`)
       debug('Archiving errored: %s', err.stack)
-      await cleanup()
+      // Try cleanup, but let original error be the main rejection reason, not the cleanup
+      await cleanup().catch(noop)
       reject(err)
     })
 
@@ -184,7 +185,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
         callback()
       }
     } catch (err) {
-      callback(err instanceof Error ? err : new Error(String(err)))
+      callback(err instanceof Error ? err : new Error(`${err}`))
     }
   })
 
@@ -192,7 +193,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
     try {
       callback(null, options.transformDocument(doc))
     } catch (err) {
-      callback(err instanceof Error ? err : new Error(String(err)))
+      callback(err instanceof Error ? err : new Error(`${err}`))
     }
   })
 
@@ -202,7 +203,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
   const jsonStream = new PassThrough()
   finished(jsonStream)
     .then(() => debug('JSON stream finished'))
-    .catch((err: unknown) => reject(err instanceof Error ? err : new Error(String(err))))
+    .catch((err: unknown) => reject(err instanceof Error ? err : new Error(`${err}`)))
 
   pipeline(
     inputStream,
@@ -220,7 +221,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
   ).catch((err: unknown) => {
     if (debugTimer !== null) clearTimeout(debugTimer)
     debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
-    reject(err instanceof Error ? err : new Error(String(err)))
+    reject(err instanceof Error ? err : new Error(`${err}`))
   })
 
   pipeline(jsonStream, createWriteStream(dataPath))
@@ -282,8 +283,8 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
         clearInterval(progressInterval)
       } catch (assetErr) {
         clearInterval(progressInterval)
-        await cleanup()
-        reject(assetErr instanceof Error ? assetErr : new Error(String(assetErr)))
+        await cleanup().catch(noop) // Try to clean up, but ignore errors here
+        reject(assetErr instanceof Error ? assetErr : new Error(`${assetErr}`))
         return
       }
 
@@ -295,12 +296,11 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
       onProgress({step: 'Adding assets to archive...'})
       await archive.finalize()
     })
-    .catch((err: unknown) => {
+    .catch(async (err: unknown) => {
       if (debugTimer !== null) clearTimeout(debugTimer)
       debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
-      void cleanup().then(() => {
-        reject(err instanceof Error ? err : new Error(String(err)))
-      })
+      await cleanup().catch(noop)
+      reject(err instanceof Error ? err : new Error(`${err}`))
     })
 
   pipeline(archive, outputStream)
