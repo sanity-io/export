@@ -2,34 +2,41 @@ import {readdir, readFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {dirname, join as joinPath} from 'node:path'
 
+import type {SanityClient} from '@sanity/client'
 import {x as extract} from 'tar'
 import {expect} from 'vitest'
 
 import {AssetHandler} from '../../src/AssetHandler.js'
+import type {SanityDocument} from '../../src/types.js'
 
-const getMockClient = () => ({
+interface MockClient {
+  config: () => {projectId: string; dataset: string}
+  fetch: (query: string, params: {id: string}) => string
+}
+
+const getMockClient = (): MockClient => ({
   config: () => ({projectId: '__fixtures__', dataset: '__test__'}),
-  fetch: (query, params) =>
+  fetch: (query: string, params: {id: string}) =>
     query.endsWith('._type') ? `sanity.imageAsset` : `http://localhost:32323/${params.id}.jpg`,
 })
 
-export function ndjsonToArray(ndjson) {
+export function ndjsonToArray(ndjson: Buffer | string): unknown[] {
   return ndjson
     .toString('utf8')
     .split('\n')
     .filter(Boolean)
-    .map((line) => JSON.parse(line))
+    .map((line) => JSON.parse(line) as unknown)
 }
 
-export function getAssetHandler() {
+export function getAssetHandler(): AssetHandler {
   return new AssetHandler({
     prefix: 'test',
-    client: getMockClient(),
+    client: getMockClient() as unknown as SanityClient,
     tmpDir: joinPath(tmpdir(), 'asset-handler-tests', `${Date.now()}`),
   })
 }
 
-export async function untarExportedFile(outDir, filepath) {
+export async function untarExportedFile(outDir: string, filepath: string): Promise<string> {
   await extract({C: outDir, f: filepath})
 
   // Attempt to find the export directory within the untarred files
@@ -41,7 +48,21 @@ export async function untarExportedFile(outDir, filepath) {
   return joinPath(outDir, exportDir)
 }
 
-export async function assertContents(fileName, content) {
+interface ExpectedAssetMeta {
+  [key: string]: unknown
+}
+
+interface ExpectedContent {
+  images?: Record<string, ExpectedAssetMeta>
+  files?: Record<string, ExpectedAssetMeta>
+  documents?: Array<Partial<SanityDocument> & {_id: string}>
+}
+
+interface AssetMetaJson {
+  [key: string]: unknown
+}
+
+export async function assertContents(fileName: string, content: ExpectedContent): Promise<void> {
   const cwd = dirname(fileName)
   await extract({
     file: fileName,
@@ -50,14 +71,17 @@ export async function assertContents(fileName, content) {
   })
 
   const [dir] = (await readdir(cwd)).filter((entry) => entry !== 'out.tar.gz')
+  if (!dir) {
+    throw new Error('No export directory found')
+  }
   const baseDir = joinPath(cwd, dir)
-  const assetsMeta =
+  const assetsMeta: AssetMetaJson | undefined =
     content.images || content.files ? await readJson(joinPath(baseDir, 'assets.json')) : undefined
 
   if (content.images) {
     const expectedImages = Object.keys(content.images)
-    const actualImages = await readdir(joinPath(baseDir, 'images')).catch((err) => {
-      if (err.code === 'ENOENT') {
+    const actualImages = await readdir(joinPath(baseDir, 'images')).catch((err: unknown) => {
+      if (typeof err === 'object' && err !== null && 'code' in err && err.code === 'ENOENT') {
         return []
       }
 
@@ -68,8 +92,8 @@ export async function assertContents(fileName, content) {
       expect(actualImages).toContain(image)
 
       const metaKey = `image-${image.slice(0, 40)}`
-      const expectedMeta = content.images[metaKey] || {}
-      if (Object.keys(expectedMeta).length > 0) {
+      const expectedMeta = content.images[metaKey] ?? {}
+      if (Object.keys(expectedMeta).length > 0 && assetsMeta) {
         expect(assetsMeta[image]).toMatchObject(expectedMeta)
       }
     }
@@ -79,8 +103,8 @@ export async function assertContents(fileName, content) {
 
   if (content.files) {
     const expectedFiles = Object.keys(content.files)
-    const actualFiles = await readdir(joinPath(baseDir, 'files')).catch((err) => {
-      if (err.code === 'ENOENT') {
+    const actualFiles = await readdir(joinPath(baseDir, 'files')).catch((err: unknown) => {
+      if (typeof err === 'object' && err !== null && 'code' in err && err.code === 'ENOENT') {
         return []
       }
 
@@ -90,8 +114,8 @@ export async function assertContents(fileName, content) {
       expect(actualFiles).toContain(file)
 
       const metaKey = `file-${file.slice(0, 40)}`
-      const expectedMeta = content.files[metaKey] || {}
-      if (Object.keys(expectedMeta).length > 0) {
+      const expectedMeta = content.files[metaKey] ?? {}
+      if (Object.keys(expectedMeta).length > 0 && assetsMeta) {
         expect(assetsMeta[file]).toMatchObject(expectedMeta)
       }
     }
@@ -101,13 +125,13 @@ export async function assertContents(fileName, content) {
 
   if (content.documents) {
     const expectedDocs = content.documents
-    const actualDocs = new Map()
+    const actualDocs = new Map<string, SanityDocument>()
 
     ;(await readFile(joinPath(baseDir, 'data.ndjson'), 'utf-8'))
       .split('\n')
       .filter(Boolean)
-      .map((line) => JSON.parse(line))
-      .map((doc) => actualDocs.set(doc._id, doc))
+      .map((line) => JSON.parse(line) as SanityDocument)
+      .forEach((doc) => actualDocs.set(doc._id, doc))
 
     for (const expectedDoc of expectedDocs) {
       const actualDoc = actualDocs.get(expectedDoc._id)
@@ -118,10 +142,10 @@ export async function assertContents(fileName, content) {
   }
 }
 
-async function readJson(filePath) {
+async function readJson(filePath: string): Promise<AssetMetaJson> {
   return readFile(filePath, {encoding: 'utf8'})
-    .then((content) => JSON.parse(content))
-    .catch((err) => {
+    .then((content) => JSON.parse(content) as AssetMetaJson)
+    .catch((err: unknown) => {
       console.error(`Failed to read JSON file at ${filePath}`)
       throw err
     })

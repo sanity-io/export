@@ -22,35 +22,50 @@
   "license": "MIT",
   "author": "Sanity.io <hello@sanity.io>",
   "type": "module",
-  "exports": "./src/export.js",
-  "main": "./src/export.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
+    "dist",
     "src"
   ],
   "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
     "lint": "eslint .",
-    "test": "vitest"
+    "prepublishOnly": "npm run build",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "archiver": "^7.0.1",
     "debug": "^4.3.4",
     "get-it": "^8.6.10",
     "json-stream-stringify": "^3.1.6",
-    "p-queue": "^9.0.1",
-    "rimraf": "^6.1.2"
+    "p-queue": "^9.0.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@sanity/client": "^7.13.1",
     "@sanity/semantic-release-preset": "^5.0.0",
+    "@types/archiver": "^7.0.0",
+    "@types/debug": "^4.1.12",
+    "@types/node": "^20.19.0",
     "@vitest/coverage-v8": "^4.0.15",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-config-sanity": "^7.1.4",
     "eslint-plugin-prettier": "^5.5.4",
     "nock": "^14.0.10",
     "prettier": "^3.7.4",
     "prettier-plugin-packagejson": "^2.5.20",
     "tar": "^7.5.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1",
     "vitest": "^4.0.15"
   },
   "engines": {

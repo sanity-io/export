@@ -1,3 +1,6 @@
+import {tmpdir} from 'node:os'
+import {join} from 'node:path'
+
 import {beforeEach, describe, expect, test, vi} from 'vitest'
 
 // Mock needs to be hoisted - define mock factory without top-level variables
@@ -6,30 +9,30 @@ vi.mock('../src/requestStream.js', () => ({
 }))
 
 import {getDocumentsStream} from '../src/getDocumentsStream.js'
+import type {SanityClientLike} from '../src/types.js'
 import {getUserAgent} from '../src/getUserAgent.js'
 import {requestStream} from '../src/requestStream.js'
 
-const getMockClient = () => ({
-  getUrl: (path) => `https://projectid.api.sanity.io/v2021-06-07${path}`,
+const getMockClient = (): SanityClientLike => ({
+  getUrl: (path: string) => `https://projectid.api.sanity.io/v2021-06-07${path}`,
   config: () => ({token: 'skMockToken', projectId: 'projectid'}),
 })
 
 describe('getDocumentsStream', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    requestStream.mockResolvedValue({})
+    vi.mocked(requestStream)
   })
 
   describe('URL construction', () => {
-    test('constructs URL with no query parameters for dataset export', () => {
-      const options = {
+    test('constructs URL with no query parameters for dataset export', async () => {
+      await getDocumentsStream({
         dataset: 'production',
         client: getMockClient(),
         maxRetries: 2,
         readTimeout: 30000,
-      }
-
-      getDocumentsStream(options)
+        outputPath: join(tmpdir(), 'url-construction-test.tar.gz'),
+      })
 
       expect(requestStream).toHaveBeenCalledWith({
         url: 'https://projectid.api.sanity.io/v2021-06-07/data/export/production',
@@ -42,16 +45,14 @@ describe('getDocumentsStream', () => {
       })
     })
 
-    test('constructs URL with types parameter for dataset export', () => {
-      const options = {
+    test('constructs URL with types parameter for dataset export', async () => {
+      await getDocumentsStream({
         dataset: 'production',
         client: getMockClient(),
         types: ['article', 'author'],
         maxRetries: 2,
         readTimeout: 30000,
-      }
-
-      getDocumentsStream(options)
+      })
 
       expect(requestStream).toHaveBeenCalledWith({
         url: 'https://projectid.api.sanity.io/v2021-06-07/data/export/production?types=article%2Cauthor',
@@ -64,16 +65,14 @@ describe('getDocumentsStream', () => {
       })
     })
 
-    test('constructs URL for media library export with types parameter', () => {
-      const options = {
+    test('constructs URL for media library export with types parameter', async () => {
+      await getDocumentsStream({
         mediaLibraryId: 'media-lib-123',
         client: getMockClient(),
         types: ['article', 'author'],
         maxRetries: 2,
         readTimeout: 30000,
-      }
-
-      getDocumentsStream(options)
+      })
 
       expect(requestStream).toHaveBeenCalledWith({
         url: 'https://projectid.api.sanity.io/v2021-06-07/media-libraries/media-lib-123/export?types=article%2Cauthor',
@@ -86,16 +85,14 @@ describe('getDocumentsStream', () => {
       })
     })
 
-    test('handles special characters in types parameter', () => {
-      const options = {
+    test('handles special characters in types parameter', async () => {
+      await getDocumentsStream({
         dataset: 'production',
         client: getMockClient(),
         types: ['article+special', 'author&category'],
         maxRetries: 2,
         readTimeout: 30000,
-      }
-
-      getDocumentsStream(options)
+      })
 
       expect(requestStream).toHaveBeenCalledWith({
         url: 'https://projectid.api.sanity.io/v2021-06-07/data/export/production?types=article%2Bspecial%2Cauthor%26category',

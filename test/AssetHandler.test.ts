@@ -1,22 +1,37 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 import os from 'node:os'
 import path from 'node:path'
 import {Readable} from 'node:stream'
 
-import {rimraf} from 'rimraf'
 import {afterAll, describe, expect, test} from 'vitest'
 
+import type {SanityDocument} from '../src/types.js'
 import {concat, split} from '../src/util/streamHelpers.js'
 import {getAssetHandler} from './helpers/index.js'
+import {rm} from 'node:fs/promises'
 
-function arrayToStream(docs) {
+function arrayToStream(docs: Array<unknown> | readonly unknown[]): Readable {
   return Readable.from([docs.map((doc) => JSON.stringify(doc)).join('\n')])
 }
 
-const docById = (docs, id) => docs.find((doc) => doc._id === id)
+function isSanityDoc(obj: unknown): obj is SanityDocument {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    '_id' in obj &&
+    typeof obj._id === 'string' &&
+    '_type' in obj &&
+    typeof obj._type === 'string'
+  )
+}
+
+const docById = (docs: unknown[], id: string): SanityDocument | undefined => {
+  return docs.find((doc): doc is SanityDocument => isSanityDoc(doc) && doc._id === id)
+}
 
 describe('asset handler', () => {
   afterAll(async () => {
-    await rimraf(path.join(os.tmpdir(), 'asset-handler-tests'))
+    await rm(path.join(os.tmpdir(), 'asset-handler-tests'), {recursive: true})
   })
 
   test('can rewrite documents / queue downloads', async () => {
@@ -34,13 +49,13 @@ describe('asset handler', () => {
     ]
 
     const assetHandler = getAssetHandler()
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       arrayToStream(docs)
         .pipe(split(JSON.parse))
         .pipe(assetHandler.rewriteAssets)
         .pipe(concat(onComplete))
 
-      async function onComplete(newDocs) {
+      async function onComplete(newDocs: unknown[]): Promise<void> {
         try {
           expect(newDocs).toHaveLength(6)
           expect(docById(newDocs, 'doc1')).toMatchSnapshot('Rewritten asset for doc1')
@@ -55,7 +70,7 @@ describe('asset handler', () => {
           expect(assetHandler.filesWritten).toEqual(3)
           resolve()
         } catch (err) {
-          reject(err)
+          reject(err instanceof Error ? err : new Error(`${err}`, {cause: err}))
         }
       }
     })
@@ -74,13 +89,13 @@ describe('asset handler', () => {
     ]
 
     const assetHandler = getAssetHandler()
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       arrayToStream(docs)
         .pipe(split(JSON.parse))
         .pipe(assetHandler.stripAssets)
         .pipe(concat(onComplete))
 
-      async function onComplete(newDocs) {
+      async function onComplete(newDocs: unknown[]): Promise<void> {
         try {
           expect(newDocs).toHaveLength(4)
           expect(docById(newDocs, 'doc1')).toMatchSnapshot('doc1 with no image asset')
@@ -92,7 +107,7 @@ describe('asset handler', () => {
           expect(assetHandler.filesWritten).toEqual(0)
           resolve()
         } catch (err) {
-          reject(err)
+          reject(err instanceof Error ? err : new Error(`${err}`, {cause: err}))
         }
       }
     })
@@ -104,16 +119,16 @@ describe('asset handler', () => {
       {_id: 'image-6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840-png', _type: 'sanity.imageAsset', url: 'https://cdn.sanity.io/images/__fixtures__/__test__/6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840.png'},
       {_id: 'mzFgq1cvHSEeGscxBsRFoqKG', _type: 'sanity.imageAsset', url: 'https://cdn.sanity.io/images/__fixtures__/__test__/mzFgq1cvHSEeGscxBsRFoqKG-2048x1364.jpg'},
       {_id: 'plain', _type: 'bike', name: 'Broom'}
-    ]
+    ] as const
 
     const assetHandler = getAssetHandler()
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       arrayToStream(docs)
         .pipe(split(JSON.parse))
         .pipe(assetHandler.rewriteAssets)
         .pipe(concat(onComplete))
 
-      async function onComplete(newDocs) {
+      async function onComplete(newDocs: unknown[]): Promise<void> {
         try {
           expect(newDocs).toHaveLength(1)
           expect(docById(newDocs, 'plain')).toMatchObject(docs[2])
@@ -122,7 +137,7 @@ describe('asset handler', () => {
           expect(assetHandler.filesWritten).toEqual(2)
           resolve()
         } catch (err) {
-          reject(err)
+          reject(err instanceof Error ? err : new Error(`${err}`, {cause: err}))
         }
       }
     })
@@ -138,16 +153,16 @@ describe('asset handler', () => {
       {_id: 'image-6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840-png', _type: 'sanity.imageAsset', url: 'https://cdn.sanity.io/images/__fixtures__/__test__/6dcdb82c282dbe0a09ff7a6b58b639732f2fb8de-3360x840.png'},
       {_id: 'image-31befc6dfa0315d6c535b8a57e34f86c18eb5f20-310x282-jpg', _type: 'sanity.imageAsset', url: 'https://cdn.sanity.io/images/__fixtures__/__test__/31befc6dfa0315d6c535b8a57e34f86c18eb5f20-310x282.jpg'},
       {_id: 'plain', _type: 'bike', name: 'Broom'}
-    ]
+    ] as const
 
     const assetHandler = getAssetHandler()
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       arrayToStream(docs)
         .pipe(split(JSON.parse))
         .pipe(assetHandler.skipAssets)
         .pipe(concat(onComplete))
 
-      async function onComplete(newDocs) {
+      async function onComplete(newDocs: unknown[]): Promise<void> {
         try {
           expect(newDocs).toHaveLength(4)
           expect(docById(newDocs, 'doc1')).toMatchObject(docs[0])
@@ -159,7 +174,7 @@ describe('asset handler', () => {
           expect(assetHandler.filesWritten).toEqual(0)
           resolve()
         } catch (err) {
-          reject(err)
+          reject(err instanceof Error ? err : new Error(`${err}`, {cause: err}))
         }
       }
     })

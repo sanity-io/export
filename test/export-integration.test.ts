@@ -4,12 +4,11 @@ This file contains integration tests for the exportDataset function and are base
   exportDataset function and a mocked backend API with disabled network requests.
 */
 
-import {mkdir, mkdtemp, readdir, readFile, stat} from 'node:fs/promises'
+import {mkdir, mkdtemp, readdir, readFile, rm, stat} from 'node:fs/promises'
 import {basename, join as joinPath} from 'node:path'
 
 import {createClient} from '@sanity/client'
 import nock from 'nock'
-import {rimraf} from 'rimraf'
 import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
 
 import {exportDataset} from '../src/export.js'
@@ -18,7 +17,7 @@ import {newTestRunId, withTmpDir} from './helpers/suite.js'
 
 const fixturesDirectory = joinPath(import.meta.dirname, 'fixtures')
 
-const expectExportSuccess = async (exportDir, exportFilePath) => {
+const expectExportSuccess = async (exportDir: string, exportFilePath: string): Promise<void> => {
   const stats = await stat(exportFilePath)
   expect(stats.size).toBeGreaterThan(0)
 
@@ -31,24 +30,51 @@ const expectExportSuccess = async (exportDir, exportFilePath) => {
   expect(JSON.parse(assetsFile)).toMatchSnapshot()
 }
 
-const setupNock = async ({url, query = {}, response}) => {
+interface ApiMockResponse {
+  code?: number
+  body?: string
+  bodyFromFile?: string
+}
+
+interface ApiMock {
+  url: string
+  query?: Record<string, string>
+  responses: Array<ApiMockResponse>
+}
+
+interface TestData {
+  apiMocks: Array<ApiMock>
+  error?: string
+}
+
+interface SetupNockParams {
+  url: string
+  query?: ApiMock['query'] | undefined
+  response: ApiMockResponse
+}
+
+const setupNock = async ({url, query = {}, response}: SetupNockParams): Promise<nock.Scope> => {
   nock.disableNetConnect()
 
-  const {origin, pathname} = URL.parse(url)
+  const {origin, pathname} = URL.parse(url) || {}
 
-  const body =
-    response.bodyFromFile === true
-      ? await readFile(joinPath(fixturesDirectory, response.bodyFromFile))
-      : response.body
+  const body = response.bodyFromFile
+    ? await readFile(joinPath(fixturesDirectory, response.bodyFromFile))
+    : response.body
 
-  return nock(origin)
+  return nock(origin ?? '')
     .get(pathname || '/')
     .query(query)
     .reply(response.code ? response.code : 200, body)
 }
 
+interface TestCase {
+  name: string
+  testData: TestData
+}
+
 describe('export integration tests', async () => {
-  let testRunPath
+  let testRunPath: string
   beforeAll(async () => {
     await mkdir(joinPath(import.meta.dirname, 'testruns'), {recursive: true})
     testRunPath = await mkdtemp(
@@ -59,22 +85,22 @@ describe('export integration tests', async () => {
   afterAll(async () => {
     nock.cleanAll()
     if (process.env.DO_NOT_DELETE !== 'true') {
-      await rimraf(testRunPath)
+      await rm(testRunPath, {recursive: true, force: true})
     }
   })
 
   const testFiles = (await readdir(fixturesDirectory)).filter((file) => file.endsWith('.json'))
-  const testCases = await Promise.all(
+  const testCases: TestCase[] = await Promise.all(
     testFiles.map(async (file) => {
       const fullPath = joinPath(fixturesDirectory, file)
       const fileContents = await readFile(fullPath, 'utf8')
-      const testData = JSON.parse(fileContents)
+      const testData = JSON.parse(fileContents) as TestData
       return {name: basename(file).replace(/-_/g, ' '), testData}
     }),
   )
 
-  test.each(testCases)('$name', async ({testData}) => {
-    await withTmpDir(testRunPath, async (exportDir) => {
+  test.each(testCases)('$name', async ({testData}: TestCase) => {
+    await withTmpDir(testRunPath, async (exportDir: string) => {
       const exportFilePath = joinPath(exportDir, 'out.tar.gz')
       for (const apiMock of testData.apiMocks) {
         for (const response of apiMock.responses) {
