@@ -55,7 +55,7 @@
     "@sanity/semantic-release-preset": "^5.0.0",
     "@types/archiver": "^7.0.0",
     "@types/debug": "^4.1.12",
-    "@types/node": "^24.10.1",
+    "@types/node": "^20.19.0",
     "@vitest/coverage-v8": "^4.0.15",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
