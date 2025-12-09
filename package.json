@@ -47,8 +47,7 @@
     "debug": "^4.3.4",
     "get-it": "^8.6.10",
     "json-stream-stringify": "^3.1.6",
-    "p-queue": "^9.0.1",
-    "rimraf": "^6.1.2"
+    "p-queue": "^9.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

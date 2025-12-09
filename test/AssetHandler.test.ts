@@ -3,12 +3,12 @@ import os from 'node:os'
 import path from 'node:path'
 import {Readable} from 'node:stream'
 
-import {rimraf} from 'rimraf'
 import {afterAll, describe, expect, test} from 'vitest'
 
 import type {SanityDocument} from '../src/types.js'
 import {concat, split} from '../src/util/streamHelpers.js'
 import {getAssetHandler} from './helpers/index.js'
+import {rm} from 'node:fs/promises'
 
 function arrayToStream(docs: Array<unknown> | readonly unknown[]): Readable {
   return Readable.from([docs.map((doc) => JSON.stringify(doc)).join('\n')])
@@ -31,7 +31,7 @@ const docById = (docs: unknown[], id: string): SanityDocument | undefined => {
 
 describe('asset handler', () => {
   afterAll(async () => {
-    await rimraf(path.join(os.tmpdir(), 'asset-handler-tests'))
+    await rm(path.join(os.tmpdir(), 'asset-handler-tests'), {recursive: true})
   })
 
   test('can rewrite documents / queue downloads', async () => {

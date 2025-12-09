@@ -4,12 +4,11 @@ This file contains integration tests for the exportDataset function and are base
   exportDataset function and a mocked backend API with disabled network requests.
 */
 
-import {mkdir, mkdtemp, readdir, readFile, stat} from 'node:fs/promises'
+import {mkdir, mkdtemp, readdir, readFile, rm, stat} from 'node:fs/promises'
 import {basename, join as joinPath} from 'node:path'
 
 import {createClient} from '@sanity/client'
 import nock from 'nock'
-import {rimraf} from 'rimraf'
 import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
 
 import {exportDataset} from '../src/export.js'
@@ -86,7 +85,7 @@ describe('export integration tests', async () => {
   afterAll(async () => {
     nock.cleanAll()
     if (process.env.DO_NOT_DELETE !== 'true') {
-      await rimraf(testRunPath)
+      await rm(testRunPath, {recursive: true, force: true})
     }
   })
 

@@ -4,7 +4,6 @@ import {join as joinPath} from 'node:path'
 import {pipeline} from 'node:stream/promises'
 
 import PQueue from 'p-queue'
-import {rimraf} from 'rimraf'
 
 import {delay} from './util/delay.js'
 import {through, throughObj} from './util/streamHelpers.js'
@@ -24,6 +23,7 @@ import type {
   SanityClientLike,
   SanityDocument,
 } from './types.js'
+import {rm} from 'node:fs/promises'
 
 const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
 const ACTION_REMOVE = 'remove' as const
@@ -365,7 +365,7 @@ export class AssetHandler {
 
       const detailsString = `Details:\n - ${details.filter(Boolean).join('\n - ')}`
 
-      await rimraf(tmpPath)
+      await rm(tmpPath, {recursive: true, force: true})
 
       throw new Error(`Failed to download asset at ${assetDoc.url}. ${detailsString}`)
     }

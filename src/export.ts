@@ -1,5 +1,5 @@
 import {createWriteStream} from 'node:fs'
-import {mkdir} from 'node:fs/promises'
+import {mkdir, rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join as joinPath} from 'node:path'
 import {PassThrough, type Writable} from 'node:stream'
@@ -9,7 +9,6 @@ import {constants as zlib} from 'node:zlib'
 
 import archiver from 'archiver'
 import {JsonStreamStringify} from 'json-stream-stringify'
-import {rimraf} from 'rimraf'
 
 import {isWritableStream, split, throughObj} from './util/streamHelpers.js'
 import {AssetHandler} from './AssetHandler.js'
@@ -77,7 +76,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
   const assetsPath = joinPath(tmpDir, 'assets.json')
 
   const cleanup = () =>
-    rimraf(tmpDir).catch((err: unknown) => {
+    rm(tmpDir, {recursive: true, force: true}).catch((err: unknown) => {
       debug(`Error while cleaning up temporary files: ${err instanceof Error ? err.message : err}`)
       return false
     })

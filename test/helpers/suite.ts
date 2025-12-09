@@ -1,8 +1,7 @@
 import {createHash} from 'node:crypto'
-import {mkdir} from 'node:fs/promises'
+import {mkdir, rm} from 'node:fs/promises'
 import {join as joinPath} from 'node:path'
 
-import {rimraf} from 'rimraf'
 import {expect} from 'vitest'
 
 // Generate unique test run ID, to be used in naming temporary directories for whole suite.
@@ -29,7 +28,7 @@ export const withTmpDir = async (
     await fn(tmpDir)
   } finally {
     if (process.env.DO_NOT_DELETE !== 'true') {
-      await rimraf(tmpDir)
+      await rm(tmpDir, {recursive: true, force: true})
     }
   }
 }
