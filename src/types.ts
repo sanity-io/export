@@ -162,7 +162,7 @@ export type ExportOptions = {
    * @param doc - The document to transform
    * @returns The transformed document
    */
-  transformDocument?: (doc: SanityDocument) => SanityDocument
+  transformDocument?: (doc: SanityDocument) => Partial<SanityDocument>
 
   /**
    * Optional progress callback that will be called periodically during the export.
@@ -225,7 +225,7 @@ export type NormalizedExportOptions = ExportOptions & {
   compress: boolean
   assetsMap: boolean
   filterDocument: (doc: SanityDocument) => boolean
-  transformDocument: (doc: SanityDocument) => SanityDocument
+  transformDocument: (doc: SanityDocument) => Partial<SanityDocument>
 }
 
 /**
