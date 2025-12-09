@@ -5,6 +5,16 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.0.0](https://github.com/sanity-io/export/compare/v5.0.1...v6.0.0) (2025-12-09)
+
+### ⚠ BREAKING CHANGES
+
+- Passing `-` as `outputPath` no longer writes to stdout - explicitly pass `process.stdout` as `outputPath` to maintain the same behavior
+
+### Features
+
+- migrate to typescript ([#36](https://github.com/sanity-io/export/issues/36)) ([3119571](https://github.com/sanity-io/export/commit/311957120a2a60b279324bf8e87954c68525dadd))
+
 ## [5.0.1](https://github.com/sanity-io/export/compare/v5.0.0...v5.0.1) (2025-12-05)
 
 ### Bug Fixes
