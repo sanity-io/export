@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.0.2](https://github.com/sanity-io/export/compare/v6.0.1...v6.0.2) (2025-12-12)
+
+### Bug Fixes
+
+- missing a default condition ([f1affca](https://github.com/sanity-io/export/commit/f1affca3dded25c0646f042dfad81c5fe3209a2b))
+
 ## [6.0.1](https://github.com/sanity-io/export/compare/v6.0.0...v6.0.1) (2025-12-09)
 
 ### Bug Fixes
