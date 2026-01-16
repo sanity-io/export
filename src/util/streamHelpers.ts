@@ -1,4 +1,5 @@
 import {Transform, type TransformCallback, type Writable} from 'node:stream'
+import {StringDecoder} from 'node:string_decoder'
 
 type TransformFunction = (
   chunk: Buffer,
@@ -66,11 +67,12 @@ export function concat(onData: (chunks: unknown[]) => void): Transform {
 export function split(transformFn?: (line: string) => unknown): Transform {
   let buffer = ''
   const splitRegex = /\r?\n/
+  const decoder = new StringDecoder('utf8')
 
   return new Transform({
     objectMode: Boolean(transformFn),
     transform(chunk: Buffer, _encoding: BufferEncoding, callback: TransformCallback) {
-      buffer += chunk.toString()
+      buffer += decoder.write(chunk)
       const lines = buffer.split(splitRegex)
 
       // Keep the last line in buffer as it might be incomplete
@@ -96,6 +98,9 @@ export function split(transformFn?: (line: string) => unknown): Transform {
       callback()
     },
     flush(callback: TransformCallback) {
+      // Flush any remaining bytes from the decoder
+      buffer += decoder.end()
+
       if (buffer.length === 0) {
         callback()
         return
