@@ -58,7 +58,13 @@ function printReport(filename, corruptions) {
 }
 
 async function main() {
-  const args = process.argv.slice(2)
+  let args = process.argv.slice(2)
+
+  // When called via `npx @sanity/export detect-corrupt`, the command name
+  // is passed as the first argument. Skip it if present.
+  if (args[0] === 'detect-corrupt') {
+    args = args.slice(1)
+  }
 
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     printUsage()
