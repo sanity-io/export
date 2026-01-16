@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.0.4](https://github.com/sanity-io/export/compare/v6.0.3...v6.0.4) (2026-01-16)
+
+### Bug Fixes
+
+- add script to detect corrupt exports ([#38](https://github.com/sanity-io/export/issues/38)) ([702a730](https://github.com/sanity-io/export/commit/702a730b59ff1b0a6dfc7a7ac8d27925e5117e1f))
+
 ## [6.0.3](https://github.com/sanity-io/export/compare/v6.0.2...v6.0.3) (2026-01-16)
 
 ### Bug Fixes
