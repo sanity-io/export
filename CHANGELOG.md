@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.0.5](https://github.com/sanity-io/export/compare/v6.0.4...v6.0.5) (2026-01-16)
+
+### Bug Fixes
+
+- allow detect-corrupt through npx or standalone ([#39](https://github.com/sanity-io/export/issues/39)) ([43df350](https://github.com/sanity-io/export/commit/43df350b3d3ea1d913f0ce09d66d371941dbf8b8))
+
 ## [6.0.4](https://github.com/sanity-io/export/compare/v6.0.3...v6.0.4) (2026-01-16)
 
 ### Bug Fixes
