@@ -1,6 +1,6 @@
 {
   "name": "@sanity/export",
-  "version": "6.0.2",
+  "version": "6.0.3",
   "description": "Export Sanity documents and assets",
   "keywords": [
     "sanity",

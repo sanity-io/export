@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.0.3](https://github.com/sanity-io/export/compare/v6.0.2...v6.0.3) (2026-01-16)
+
+### Bug Fixes
+
+- multi-byte utf8 characters between chunk boundaries ([#37](https://github.com/sanity-io/export/issues/37)) ([9623e51](https://github.com/sanity-io/export/commit/9623e512bed064b4f77e517551bb2d8080a9db56))
+
 ## [6.0.2](https://github.com/sanity-io/export/compare/v6.0.1...v6.0.2) (2025-12-12)
 
 ### Bug Fixes
