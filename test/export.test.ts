@@ -3,7 +3,6 @@ import {mkdir, readdir, readFile, rm, stat} from 'node:fs/promises'
 import http from 'node:http'
 import os from 'node:os'
 import {join as joinPath} from 'node:path'
-import {PassThrough} from 'node:stream'
 
 import {x as extract} from 'tar'
 import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
@@ -964,11 +963,11 @@ describe('export', () => {
     await mkdir(cwd, {recursive: true})
     await extract({file: result.outputPath, gzip: true, cwd})
 
-    const topLevelEntries = await readdir(cwd)
+    const [rootDir, ...otherTopLevel] = await readdir(cwd)
 
     // Should have exactly one root directory
-    expect(topLevelEntries).toHaveLength(1)
-    const rootDir = topLevelEntries[0]!
+    if (otherTopLevel.length !== 0) throw new Error(`Expected exactly one root directory in archive, found ${otherTopLevel.length}`) 
+    if (!rootDir) throw new Error('Expected at least one top-level entry in archive, found none')
 
     // Root directory name should match the source-export-timestamp pattern
     expect(rootDir).toMatch(/^source-export-\d{4}-\d{2}-\d{2}t/)
@@ -994,14 +993,14 @@ describe('export', () => {
     expect(dataLines).toHaveLength(2)
     for (const line of dataLines) {
       expect(line.length).toBeGreaterThan(0)
-      expect(() => JSON.parse(line)).not.toThrow()
+      expect(() => JSON.parse(line) as unknown).not.toThrow()
     }
 
     // No empty lines between records
     expect(dataLines.every((line) => line.length > 0)).toBe(true)
 
     // Parsed content should match
-    const parsed = dataLines.map((line) => JSON.parse(line))
+    const parsed = dataLines.map((line): unknown => JSON.parse(line))
     expect(parsed).toEqual(documents)
 
     await rm(cwd, {recursive: true})
@@ -1144,7 +1143,8 @@ describe('export', () => {
     await mkdir(cwd, {recursive: true})
     await extract({file: result.outputPath, gzip: true, cwd})
     const [dir] = (await readdir(cwd)).filter((e) => e !== 'out.tar.gz')
-    const baseDir = joinPath(cwd, dir!)
+    if (!dir) throw new Error('No base directory found in archive')
+    const baseDir = joinPath(cwd, dir)
     await expect(stat(joinPath(baseDir, 'assets.json'))).rejects.toThrow('ENOENT')
     // data.ndjson should still exist
     const data = await readFile(joinPath(baseDir, 'data.ndjson'), 'utf-8')

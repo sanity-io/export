@@ -136,7 +136,7 @@ describe('AssetHandler download paths', () => {
     }
 
     handler.queueAssetDownload(assetDoc, 'images/abc123.png')
-    const assetMap = await handler.finish()
+    await handler.finish()
 
     expect(handler.filesWritten).toBe(0)
     expect(warn).toHaveBeenCalledWith(
@@ -172,7 +172,7 @@ describe('AssetHandler download paths', () => {
     }
 
     handler.queueAssetDownload(assetDoc, 'images/abc123.png')
-    const assetMap = await handler.finish()
+    await handler.finish()
 
     expect(handler.filesWritten).toBe(0)
     expect(warn).toHaveBeenCalledWith(
@@ -247,9 +247,10 @@ describe('AssetHandler download paths', () => {
     expect(images).toContain('eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png')
 
     // Asset map should contain metadata
-    const keys = Object.keys(assetMap)
-    expect(keys).toHaveLength(1)
-    expect(assetMap[keys[0]!]).toMatchObject({originalFilename: 'mead.png'})
+    const [key, secondKey] = Object.keys(assetMap)
+    if (!key) throw new Error('Expected at least one key in assetMap, found none')
+    expect(secondKey).toBeUndefined()
+    expect(assetMap[key]).toMatchObject({originalFilename: 'mead.png'})
   })
 
   test('adds Authorization header for image assets on cdn.sanity.io', () => {
