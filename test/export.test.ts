@@ -1,15 +1,17 @@
-import {createReadStream} from 'node:fs'
-import {mkdir, rm} from 'node:fs/promises'
+import {createReadStream, createWriteStream} from 'node:fs'
+import {mkdir, readdir, readFile, rm, stat} from 'node:fs/promises'
 import http from 'node:http'
 import os from 'node:os'
 import {join as joinPath} from 'node:path'
+import {PassThrough} from 'node:stream'
 
+import {x as extract} from 'tar'
 import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
 
 import {MODE_CURSOR} from '../src/constants.js'
 import deprecatedExport, {exportDataset} from '../src/export.js'
 import {assertContents} from './helpers/index.js'
-import type {SanityClientLike, SanityDocument} from '../src/types.js'
+import type {ExportProgress, SanityClientLike, SanityDocument} from '../src/types.js'
 
 const OUTPUT_ROOT_DIR = joinPath(os.tmpdir(), 'sanity-export-tests')
 
@@ -938,6 +940,52 @@ describe('export', () => {
     await assertContents(resultWithDrafts.outputPath, {
       documents: [regularDoc, draftDoc, versionDoc, releaseDoc],
     })
+  })
+
+  test('skips assets.json when assetsMap is false', async () => {
+    const port = 43216
+    server = await getServer(port, (req, res) => {
+      const url = req.url || '/'
+      if (url.startsWith('/images')) {
+        res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
+        return
+      }
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(
+        JSON.stringify({
+          _id: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
+          _type: 'sanity.imageAsset',
+          url: `http://localhost:${port}/images/ppsg7ml5/test/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png`,
+          path: 'images/ppsg7ml5/test/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
+          originalFilename: 'mead.png',
+        }),
+      )
+      res.write('\n')
+      res.write(
+        JSON.stringify({
+          _id: 'my-article',
+          _type: 'article',
+          title: 'Test',
+        }),
+      )
+      res.end()
+    })
+    const options = await getOptions({port, assetsMap: false})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({assetCount: 1, documentCount: 1})
+
+    // Extract and verify no assets.json exists
+    const cwd = joinPath(os.tmpdir(), `assetsmap-check-${Date.now()}`)
+    await mkdir(cwd, {recursive: true})
+    await extract({file: result.outputPath, gzip: true, cwd})
+    const [dir] = (await readdir(cwd)).filter((e) => e !== 'out.tar.gz')
+    const baseDir = joinPath(cwd, dir!)
+    await expect(stat(joinPath(baseDir, 'assets.json'))).rejects.toThrow('ENOENT')
+    // data.ndjson should still exist
+    const data = await readFile(joinPath(baseDir, 'data.ndjson'), 'utf-8')
+    expect(data.trim()).toContain('my-article')
+    await rm(cwd, {recursive: true})
   })
 
   test('using default export works but gives deprecation warning (once)', async () => {
