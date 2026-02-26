@@ -1041,6 +1041,49 @@ describe('export', () => {
     })
   })
 
+  test('onProgress receives correct step names and progress values', async () => {
+    const port = 43215
+    const documents = [
+      {_id: 'prog-1', _type: 'article', title: 'First'},
+      {_id: 'prog-2', _type: 'article', title: 'Second'},
+    ]
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      for (const doc of documents) {
+        res.write(JSON.stringify(doc))
+        res.write('\n')
+      }
+      res.end()
+    })
+
+    const progressCalls: ExportProgress[] = []
+    const options = await getOptions({
+      port,
+      onProgress: (progress: ExportProgress) => {
+        progressCalls.push({...progress})
+      },
+    })
+    await exportDataset(options)
+
+    // Should have progress calls for different steps
+    const steps = progressCalls.map((p) => p.step)
+    expect(steps).toContain('Exporting documents...')
+    expect(steps).toContain('Downloading assets...')
+    expect(steps).toContain('Clearing temporary files...')
+
+    // Document export should have a final call with current === total
+    const documentDone = progressCalls.find(
+      (p) => p.step === 'Exporting documents...' && p.current === 2 && p.total === 2,
+    )
+    expect(documentDone).toBeDefined()
+
+    // Asset download should finish with 0/0 (no assets)
+    const assetDone = progressCalls.find(
+      (p) => p.step === 'Downloading assets...' && p.current === 0 && p.total === 0,
+    )
+    expect(assetDone).toBeDefined()
+  })
+
   test('exports valid archive with compress: false', async () => {
     const port = 43215
     const doc = {
