@@ -1,8 +1,8 @@
 import {describe, expect, test} from 'vitest'
-import {Readable} from 'node:stream'
+import {PassThrough, Readable, Writable} from 'node:stream'
 import {pipeline} from 'node:stream/promises'
 
-import {split} from '../src/util/streamHelpers.js'
+import {concat, isWritableStream, split, through, throughObj} from '../src/util/streamHelpers.js'
 
 describe('split', () => {
   test('handles multi-byte UTF-8 characters split across chunk boundaries', async () => {
@@ -78,6 +78,30 @@ describe('split', () => {
     expect(results[0]).toEqual({emoji: '🎉'})
   })
 
+  test('splits lines without transform function', async () => {
+    const results: string[] = []
+    const splitStream = split()
+
+    const readable = Readable.from([Buffer.from('hello\nworld\n')])
+    splitStream.on('data', (chunk: Buffer) => results.push(chunk.toString()))
+
+    await pipeline(readable, splitStream)
+
+    expect(results).toEqual(['hello', 'world'])
+  })
+
+  test('skips empty lines', async () => {
+    const results: string[] = []
+    const splitStream = split()
+
+    const readable = Readable.from([Buffer.from('a\n\n\nb\n')])
+    splitStream.on('data', (chunk: Buffer) => results.push(chunk.toString()))
+
+    await pipeline(readable, splitStream)
+
+    expect(results).toEqual(['a', 'b'])
+  })
+
   test('handles Chinese characters at end of stream without trailing newline', async () => {
     // Test that flush also handles incomplete UTF-8 sequences
     // 中 = E4 B8 AD (bytes 9-11)
@@ -111,5 +135,128 @@ describe('split', () => {
 
     expect(results).toHaveLength(1)
     expect(results[0]).toEqual({name: '中文'})
+  })
+})
+
+describe('through', () => {
+  test('transforms buffer chunks', async () => {
+    const upperCase = through((chunk, _enc, cb) => {
+      cb(null, Buffer.from(chunk.toString().toUpperCase()))
+    })
+
+    const results: Buffer[] = []
+    upperCase.on('data', (chunk: Buffer) => results.push(chunk))
+
+    const readable = Readable.from([Buffer.from('hello'), Buffer.from('world')])
+    await pipeline(readable, upperCase)
+
+    expect(Buffer.concat(results).toString()).toBe('HELLOWORLD')
+  })
+
+  test('propagates errors via callback', async () => {
+    const failing = through((_chunk, _enc, cb) => {
+      cb(new Error('transform error'))
+    })
+
+    const readable = Readable.from([Buffer.from('data')])
+    await expect(pipeline(readable, failing)).rejects.toThrow('transform error')
+  })
+})
+
+describe('throughObj', () => {
+  test('transforms objects in object mode', async () => {
+    const doubler = throughObj((num: number, _enc, cb) => {
+      cb(null, num * 2)
+    })
+
+    const results: unknown[] = []
+    doubler.on('data', (chunk: unknown) => results.push(chunk))
+
+    const readable = Readable.from([1, 2, 3])
+    await pipeline(readable, doubler)
+
+    expect(results).toEqual([2, 4, 6])
+  })
+
+  test('can filter by not passing value to callback', async () => {
+    const evensOnly = throughObj((num: number, _enc, cb) => {
+      if (num % 2 === 0) {
+        cb(null, num)
+      } else {
+        cb()
+      }
+    })
+
+    const results: unknown[] = []
+    evensOnly.on('data', (chunk: unknown) => results.push(chunk))
+
+    const readable = Readable.from([1, 2, 3, 4, 5])
+    await pipeline(readable, evensOnly)
+
+    expect(results).toEqual([2, 4])
+  })
+})
+
+describe('concat', () => {
+  test('collects all chunks and calls callback on flush', async () => {
+    let collected: unknown[] = []
+    const collector = concat((chunks) => {
+      collected = chunks
+    })
+
+    const readable = Readable.from([{a: 1}, {b: 2}, {c: 3}])
+    await pipeline(readable, collector)
+
+    expect(collected).toEqual([{a: 1}, {b: 2}, {c: 3}])
+  })
+
+  test('calls callback with empty array when no data', async () => {
+    let collected: unknown[] | null = null
+    const collector = concat((chunks) => {
+      collected = chunks
+    })
+
+    const readable = Readable.from([])
+    await pipeline(readable, collector)
+
+    expect(collected).toEqual([])
+  })
+
+  test('propagates errors thrown in callback', async () => {
+    const failing = concat(() => {
+      throw new Error('concat error')
+    })
+
+    const readable = Readable.from([{a: 1}])
+    await expect(pipeline(readable, failing)).rejects.toThrow('concat error')
+  })
+})
+
+describe('isWritableStream', () => {
+  test('returns true for Writable stream', () => {
+    const writable = new Writable({write(_chunk, _enc, cb) { cb() }})
+    expect(isWritableStream(writable)).toBe(true)
+  })
+
+  test('returns true for PassThrough stream', () => {
+    const pt = new PassThrough()
+    expect(isWritableStream(pt)).toBe(true)
+  })
+
+  test('returns false for string', () => {
+    expect(isWritableStream('/tmp/file.txt')).toBe(false)
+  })
+
+  test('returns false for null', () => {
+    expect(isWritableStream(null)).toBe(false)
+  })
+
+  test('returns false for plain object', () => {
+    expect(isWritableStream({pipe: 'not-a-function'})).toBe(false)
+  })
+
+  test('returns false for Readable stream', () => {
+    const readable = new Readable({read() { this.push(null) }})
+    expect(isWritableStream(readable)).toBe(false)
   })
 })
