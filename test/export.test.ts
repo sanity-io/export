@@ -942,6 +942,71 @@ describe('export', () => {
     })
   })
 
+  test('archive has correct structure: single root dir, valid NDJSON', async () => {
+    const port = 43215
+    const documents = [
+      {_id: 'doc-1', _type: 'article', title: 'First'},
+      {_id: 'doc-2', _type: 'article', title: 'Second'},
+    ]
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      for (const doc of documents) {
+        res.write(JSON.stringify(doc))
+        res.write('\n')
+      }
+      res.end()
+    })
+    const options = await getOptions({port})
+    const result = await exportDataset(options)
+
+    // Extract and inspect structure
+    const cwd = joinPath(os.tmpdir(), `archive-structure-${Date.now()}`)
+    await mkdir(cwd, {recursive: true})
+    await extract({file: result.outputPath, gzip: true, cwd})
+
+    const topLevelEntries = await readdir(cwd)
+
+    // Should have exactly one root directory
+    expect(topLevelEntries).toHaveLength(1)
+    const rootDir = topLevelEntries[0]!
+
+    // Root directory name should match the source-export-timestamp pattern
+    expect(rootDir).toMatch(/^source-export-\d{4}-\d{2}-\d{2}t/)
+
+    // Should contain data.ndjson
+    const baseDir = joinPath(cwd, rootDir)
+    const contents = await readdir(baseDir)
+    expect(contents).toContain('data.ndjson')
+    expect(contents).toContain('assets.json')
+
+    // Verify NDJSON format: each line is exactly one valid JSON object terminated by newline
+    const ndjsonContent = await readFile(joinPath(baseDir, 'data.ndjson'), 'utf-8')
+
+    // Should end with a newline
+    expect(ndjsonContent.endsWith('\n')).toBe(true)
+
+    // Split into lines - last element after split will be empty string due to trailing newline
+    const lines = ndjsonContent.split('\n')
+    expect(lines[lines.length - 1]).toBe('') // trailing newline
+    const dataLines = lines.slice(0, -1)
+
+    // Each line should be valid JSON
+    expect(dataLines).toHaveLength(2)
+    for (const line of dataLines) {
+      expect(line.length).toBeGreaterThan(0)
+      expect(() => JSON.parse(line)).not.toThrow()
+    }
+
+    // No empty lines between records
+    expect(dataLines.every((line) => line.length > 0)).toBe(true)
+
+    // Parsed content should match
+    const parsed = dataLines.map((line) => JSON.parse(line))
+    expect(parsed).toEqual(documents)
+
+    await rm(cwd, {recursive: true})
+  })
+
   test('supports writable stream as outputPath', async () => {
     const port = 43215
     const doc = {
