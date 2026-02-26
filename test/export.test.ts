@@ -942,6 +942,40 @@ describe('export', () => {
     })
   })
 
+  test('supports writable stream as outputPath', async () => {
+    const port = 43215
+    const doc = {
+      _id: 'stream-doc',
+      _type: 'article',
+      title: 'Written to stream',
+    }
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(JSON.stringify(doc))
+      res.end()
+    })
+    const randomPath = (Math.random() + 1).toString(36).substring(7)
+    const outputDir = joinPath(OUTPUT_ROOT_DIR, randomPath)
+    const outputPath = joinPath(outputDir, 'out.tar.gz')
+    await mkdir(outputDir, {recursive: true})
+
+    const writable = createWriteStream(outputPath)
+    const result = await exportDataset({
+      dataset: 'source',
+      client: getMockClient(port),
+      outputPath: writable,
+      maxRetries: 2,
+      retryDelayMs: 10,
+    })
+    expect(result).toMatchObject({documentCount: 1, assetCount: 0})
+    expect(result.outputPath).toBe(writable)
+
+    // Verify the file is a valid tar.gz
+    await assertContents(outputPath, {
+      documents: [doc],
+    })
+  })
+
   test('exports valid archive with compress: false', async () => {
     const port = 43215
     const doc = {
