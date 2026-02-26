@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.0.6](https://github.com/sanity-io/export/compare/v6.0.5...v6.0.6) (2026-02-26)
+
+### Bug Fixes
+
+- use import.meta.url instead of import.meta.dirname for compatibility ([#43](https://github.com/sanity-io/export/issues/43)) ([c45a5c2](https://github.com/sanity-io/export/commit/c45a5c237aee41a96d002bb58ce89352aa35db2f)), closes [#41](https://github.com/sanity-io/export/issues/41)
+
 ## [6.0.5](https://github.com/sanity-io/export/compare/v6.0.4...v6.0.5) (2026-01-16)
 
 ### Bug Fixes
