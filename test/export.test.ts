@@ -942,6 +942,28 @@ describe('export', () => {
     })
   })
 
+  test('exports valid archive with compress: false', async () => {
+    const port = 43215
+    const doc = {
+      _id: 'uncompressed-doc',
+      _type: 'article',
+      title: 'No compression',
+    }
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(JSON.stringify(doc))
+      res.end()
+    })
+    const options = await getOptions({port, compress: false})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({documentCount: 1, assetCount: 0})
+
+    // Verify the archive is still extractable (gzip with level 0)
+    await assertContents(result.outputPath, {
+      documents: [doc],
+    })
+  })
+
   test('skips assets.json when assetsMap is false', async () => {
     const port = 43216
     server = await getServer(port, (req, res) => {
