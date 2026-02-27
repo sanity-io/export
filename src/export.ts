@@ -7,7 +7,7 @@ import {finished, pipeline} from 'node:stream/promises'
 import {deprecate} from 'node:util'
 import {constants as zlib} from 'node:zlib'
 
-import archiver from 'archiver'
+import {Pack} from 'tar'
 import {JsonStreamStringify} from 'json-stream-stringify'
 
 import {isWritableStream, split, throughObj} from './util/streamHelpers.js'
@@ -33,6 +33,20 @@ import {getSource, validateOptions} from './options.js'
 
 const noop = (): null => null
 
+/** Assert that a value is a readable stream (Pack from tar extends Minipass, which is pipe-compatible but not typed as a Node.js stream) */
+function assertReadableStream(value: unknown): asserts value is NodeJS.ReadableStream {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !('pipe' in value) ||
+    typeof value.pipe !== 'function' ||
+    !('on' in value) ||
+    typeof value.on !== 'function'
+  ) {
+    throw new TypeError('Expected a readable stream')
+  }
+}
+
 /**
  * Export the dataset with the given options.
  *
@@ -50,18 +64,6 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult>
 export async function exportDataset(opts: ExportOptions): Promise<ExportResult> {
   const options = validateOptions(opts)
   const onProgress = options.onProgress ?? noop
-  const archive = archiver('tar', {
-    gzip: true,
-    gzipOptions: {
-      level: options.compress ? zlib.Z_DEFAULT_COMPRESSION : zlib.Z_NO_COMPRESSION,
-    },
-  })
-  archive.on('warning', (err) => {
-    debug('Archive warning: %s', err.message)
-  })
-  archive.on('entry', (entry) => {
-    debug('Adding archive entry: %s', entry.name)
-  })
 
   const slugDate = new Date()
     .toISOString()
@@ -72,6 +74,25 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
   const prefix = `${source.id}-export-${slugDate}`
   const tmpDir = joinPath(tmpdir(), prefix)
   await mkdir(tmpDir, {recursive: true})
+  // Pre-create asset directories so tar.Pack.add() doesn't throw if no assets are downloaded
+  await mkdir(joinPath(tmpDir, 'files'), {recursive: true})
+  await mkdir(joinPath(tmpDir, 'images'), {recursive: true})
+
+  const archive = new Pack({
+    gzip: options.compress
+      ? {level: zlib.Z_DEFAULT_COMPRESSION}
+      : {level: zlib.Z_NO_COMPRESSION},
+    cwd: tmpDir,
+    prefix,
+    portable: true,
+    onwarn: (_code, message) => {
+      debug('Archive warning: %s', message)
+    },
+    onWriteEntry: (entry) => {
+      debug('Adding archive entry: %s', entry.path)
+    },
+  })
+
   const dataPath = joinPath(tmpDir, 'data.ndjson')
   const assetsPath = joinPath(tmpDir, 'assets.json')
 
@@ -109,6 +130,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
     reject = rej
   })
 
+  assertReadableStream(archive)
   finished(archive)
     .then(() => {
       debug('Archive finished')
@@ -237,7 +259,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
       })
 
       debug('Adding data.ndjson to archive')
-      archive.file(dataPath, {name: 'data.ndjson', prefix})
+      archive.add('data.ndjson')
 
       if (!options.raw && options.assets) {
         onProgress({step: 'Downloading assets...'})
@@ -277,7 +299,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
         await pipeline(new JsonStreamStringify(assetMap), assetsStream)
 
         if (options.assetsMap) {
-          archive.file(assetsPath, {name: 'assets.json', prefix})
+          archive.add('assets.json')
         }
 
         clearInterval(progressInterval)
@@ -289,12 +311,12 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
       }
 
       // Add all downloaded assets to archive
-      archive.directory(joinPath(tmpDir, 'files'), `${prefix}/files`)
-      archive.directory(joinPath(tmpDir, 'images'), `${prefix}/images`)
+      archive.add('files')
+      archive.add('images')
 
       debug('Finalizing archive, flushing streams')
       onProgress({step: 'Adding assets to archive...'})
-      await archive.finalize()
+      archive.end()
     })
     .catch(async (err: unknown) => {
       if (debugTimer !== null) clearTimeout(debugTimer)
