@@ -1,15 +1,16 @@
-import {createReadStream} from 'node:fs'
-import {mkdir, rm} from 'node:fs/promises'
+import {createReadStream, createWriteStream} from 'node:fs'
+import {mkdir, readdir, readFile, rm, stat} from 'node:fs/promises'
 import http from 'node:http'
 import os from 'node:os'
 import {join as joinPath} from 'node:path'
 
+import {x as extract} from 'tar'
 import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
 
 import {MODE_CURSOR} from '../src/constants.js'
 import deprecatedExport, {exportDataset} from '../src/export.js'
 import {assertContents} from './helpers/index.js'
-import type {SanityClientLike, SanityDocument} from '../src/types.js'
+import type {ExportProgress, SanityClientLike, SanityDocument} from '../src/types.js'
 
 const OUTPUT_ROOT_DIR = joinPath(os.tmpdir(), 'sanity-export-tests')
 
@@ -938,6 +939,217 @@ describe('export', () => {
     await assertContents(resultWithDrafts.outputPath, {
       documents: [regularDoc, draftDoc, versionDoc, releaseDoc],
     })
+  })
+
+  test('archive has correct structure: single root dir, valid NDJSON', async () => {
+    const port = 43215
+    const documents = [
+      {_id: 'doc-1', _type: 'article', title: 'First'},
+      {_id: 'doc-2', _type: 'article', title: 'Second'},
+    ]
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      for (const doc of documents) {
+        res.write(JSON.stringify(doc))
+        res.write('\n')
+      }
+      res.end()
+    })
+    const options = await getOptions({port})
+    const result = await exportDataset(options)
+
+    // Extract and inspect structure
+    const cwd = joinPath(os.tmpdir(), `archive-structure-${Date.now()}`)
+    await mkdir(cwd, {recursive: true})
+    await extract({file: result.outputPath, gzip: true, cwd})
+
+    const [rootDir, ...otherTopLevel] = await readdir(cwd)
+
+    // Should have exactly one root directory
+    if (otherTopLevel.length !== 0) throw new Error(`Expected exactly one root directory in archive, found ${otherTopLevel.length}`) 
+    if (!rootDir) throw new Error('Expected at least one top-level entry in archive, found none')
+
+    // Root directory name should match the source-export-timestamp pattern
+    expect(rootDir).toMatch(/^source-export-\d{4}-\d{2}-\d{2}t/)
+
+    // Should contain data.ndjson
+    const baseDir = joinPath(cwd, rootDir)
+    const contents = await readdir(baseDir)
+    expect(contents).toContain('data.ndjson')
+    expect(contents).toContain('assets.json')
+
+    // Verify NDJSON format: each line is exactly one valid JSON object terminated by newline
+    const ndjsonContent = await readFile(joinPath(baseDir, 'data.ndjson'), 'utf-8')
+
+    // Should end with a newline
+    expect(ndjsonContent.endsWith('\n')).toBe(true)
+
+    // Split into lines - last element after split will be empty string due to trailing newline
+    const lines = ndjsonContent.split('\n')
+    expect(lines[lines.length - 1]).toBe('') // trailing newline
+    const dataLines = lines.slice(0, -1)
+
+    // Each line should be valid JSON
+    expect(dataLines).toHaveLength(2)
+    for (const line of dataLines) {
+      expect(line.length).toBeGreaterThan(0)
+      expect(() => JSON.parse(line) as unknown).not.toThrow()
+    }
+
+    // No empty lines between records
+    expect(dataLines.every((line) => line.length > 0)).toBe(true)
+
+    // Parsed content should match
+    const parsed = dataLines.map((line): unknown => JSON.parse(line))
+    expect(parsed).toEqual(documents)
+
+    await rm(cwd, {recursive: true})
+  })
+
+  test('supports writable stream as outputPath', async () => {
+    const port = 43215
+    const doc = {
+      _id: 'stream-doc',
+      _type: 'article',
+      title: 'Written to stream',
+    }
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(JSON.stringify(doc))
+      res.end()
+    })
+    const randomPath = (Math.random() + 1).toString(36).substring(7)
+    const outputDir = joinPath(OUTPUT_ROOT_DIR, randomPath)
+    const outputPath = joinPath(outputDir, 'out.tar.gz')
+    await mkdir(outputDir, {recursive: true})
+
+    const writable = createWriteStream(outputPath)
+    const result = await exportDataset({
+      dataset: 'source',
+      client: getMockClient(port),
+      outputPath: writable,
+      maxRetries: 2,
+      retryDelayMs: 10,
+    })
+    expect(result).toMatchObject({documentCount: 1, assetCount: 0})
+    expect(result.outputPath).toBe(writable)
+
+    // Verify the file is a valid tar.gz
+    await assertContents(outputPath, {
+      documents: [doc],
+    })
+  })
+
+  test('onProgress receives correct step names and progress values', async () => {
+    const port = 43215
+    const documents = [
+      {_id: 'prog-1', _type: 'article', title: 'First'},
+      {_id: 'prog-2', _type: 'article', title: 'Second'},
+    ]
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      for (const doc of documents) {
+        res.write(JSON.stringify(doc))
+        res.write('\n')
+      }
+      res.end()
+    })
+
+    const progressCalls: ExportProgress[] = []
+    const options = await getOptions({
+      port,
+      onProgress: (progress: ExportProgress) => {
+        progressCalls.push({...progress})
+      },
+    })
+    await exportDataset(options)
+
+    // Should have progress calls for different steps
+    const steps = progressCalls.map((p) => p.step)
+    expect(steps).toContain('Exporting documents...')
+    expect(steps).toContain('Downloading assets...')
+    expect(steps).toContain('Clearing temporary files...')
+
+    // Document export should have a final call with current === total
+    const documentDone = progressCalls.find(
+      (p) => p.step === 'Exporting documents...' && p.current === 2 && p.total === 2,
+    )
+    expect(documentDone).toBeDefined()
+
+    // Asset download should finish with 0/0 (no assets)
+    const assetDone = progressCalls.find(
+      (p) => p.step === 'Downloading assets...' && p.current === 0 && p.total === 0,
+    )
+    expect(assetDone).toBeDefined()
+  })
+
+  test('exports valid archive with compress: false', async () => {
+    const port = 43215
+    const doc = {
+      _id: 'uncompressed-doc',
+      _type: 'article',
+      title: 'No compression',
+    }
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(JSON.stringify(doc))
+      res.end()
+    })
+    const options = await getOptions({port, compress: false})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({documentCount: 1, assetCount: 0})
+
+    // Verify the archive is still extractable (gzip with level 0)
+    await assertContents(result.outputPath, {
+      documents: [doc],
+    })
+  })
+
+  test('skips assets.json when assetsMap is false', async () => {
+    const port = 43216
+    server = await getServer(port, (req, res) => {
+      const url = req.url || '/'
+      if (url.startsWith('/images')) {
+        res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
+        createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
+        return
+      }
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.write(
+        JSON.stringify({
+          _id: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
+          _type: 'sanity.imageAsset',
+          url: `http://localhost:${port}/images/ppsg7ml5/test/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png`,
+          path: 'images/ppsg7ml5/test/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
+          originalFilename: 'mead.png',
+        }),
+      )
+      res.write('\n')
+      res.write(
+        JSON.stringify({
+          _id: 'my-article',
+          _type: 'article',
+          title: 'Test',
+        }),
+      )
+      res.end()
+    })
+    const options = await getOptions({port, assetsMap: false})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({assetCount: 1, documentCount: 1})
+
+    // Extract and verify no assets.json exists
+    const cwd = joinPath(os.tmpdir(), `assetsmap-check-${Date.now()}`)
+    await mkdir(cwd, {recursive: true})
+    await extract({file: result.outputPath, gzip: true, cwd})
+    const [dir] = (await readdir(cwd)).filter((e) => e !== 'out.tar.gz')
+    if (!dir) throw new Error('No base directory found in archive')
+    const baseDir = joinPath(cwd, dir)
+    await expect(stat(joinPath(baseDir, 'assets.json'))).rejects.toThrow('ENOENT')
+    // data.ndjson should still exist
+    const data = await readFile(joinPath(baseDir, 'data.ndjson'), 'utf-8')
+    expect(data.trim()).toContain('my-article')
+    await rm(cwd, {recursive: true})
   })
 
   test('using default export works but gives deprecation warning (once)', async () => {
