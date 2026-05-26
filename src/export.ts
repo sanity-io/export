@@ -109,6 +109,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
     ...(options.assetConcurrency !== undefined && {concurrency: options.assetConcurrency}),
     ...(options.retryDelayMs !== undefined && {retryDelayMs: options.retryDelayMs}),
     maxRetries: options.maxAssetRetries,
+    strictAssetVerification: options.strictAssetVerification,
   })
 
   debug('Downloading assets (temporarily) to %s', tmpDir)

@@ -7,7 +7,7 @@ import {
 } from './constants.js'
 import type {ExportOptions, ExportSource, NormalizedExportOptions, SanityDocument} from './types.js'
 
-const booleanFlags = ['assets', 'raw', 'compress', 'drafts'] as const
+const booleanFlags = ['assets', 'raw', 'compress', 'drafts', 'strictAssetVerification'] as const
 const numberFlags = ['maxAssetRetries', 'maxRetries', 'assetConcurrency', 'readTimeout'] as const
 
 const exportDefaults = {
@@ -15,6 +15,7 @@ const exportDefaults = {
   drafts: true,
   assets: true,
   assetsMap: true,
+  strictAssetVerification: true,
   raw: false,
   mode: MODE_STREAM,
   maxRetries: DOCUMENT_STREAM_MAX_RETRIES,

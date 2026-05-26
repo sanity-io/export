@@ -115,7 +115,7 @@ describe('validateOptions', () => {
   })
 
   test('throws if boolean flags are not boolean', () => {
-    for (const flag of ['assets', 'raw', 'compress', 'drafts'] as const) {
+    for (const flag of ['assets', 'raw', 'compress', 'drafts', 'strictAssetVerification'] as const) {
       expect(() =>
         // @ts-expect-error Testing invalid boolean
         validateOptions({...validOptions(), [flag]: 'yes'}),
@@ -194,6 +194,7 @@ describe('validateOptions', () => {
     expect(result.raw).toBe(false)
     expect(result.mode).toBe('stream')
     expect(result.assetsMap).toBe(true)
+    expect(result.strictAssetVerification).toBe(true)
     expect(typeof result.filterDocument).toBe('function')
     expect(typeof result.transformDocument).toBe('function')
   })
