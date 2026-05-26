@@ -39,6 +39,7 @@ interface AssetHandlerOptions {
   maxRetries?: number
   retryDelayMs?: number
   queue?: PQueue
+  strictAssetVerification?: boolean
 }
 
 interface AssetRequestOptions {
@@ -74,6 +75,7 @@ export class AssetHandler {
   maxRetries: number
   retryDelayMs: number | undefined
   queue: PQueue
+  strictAssetVerification: boolean
   rejectedError: Error | null
   reject: (err: Error) => void
 
@@ -93,6 +95,7 @@ export class AssetHandler {
     this.maxRetries = options.maxRetries ?? ASSET_DOWNLOAD_MAX_RETRIES
     this.retryDelayMs = options.retryDelayMs
     this.queue = options.queue ?? new PQueue({concurrency})
+    this.strictAssetVerification = options.strictAssetVerification ?? true
 
     this.rejectedError = null
     this.reject = (err: Error): void => {
@@ -365,9 +368,14 @@ export class AssetHandler {
 
       const detailsString = `Details:\n - ${details.filter(Boolean).join('\n - ')}`
 
-      await rm(tmpPath, {recursive: true, force: true})
-
-      throw new Error(`Failed to download asset at ${assetDoc.url}. ${detailsString}`)
+      if (this.strictAssetVerification) {
+        await rm(tmpPath, { recursive: true, force: true })
+        throw new Error(`Failed to download asset at ${assetDoc.url}. ${detailsString}`)
+      } else {
+        console.warn(
+          `⚠ ${assetDoc._id} failed asset verification (ignoring): ${detailsString}`,
+        )
+      }
     }
 
     const isImage = assetDoc._type === 'sanity.imageAsset'

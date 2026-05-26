@@ -146,6 +146,15 @@ export type ExportOptions = {
   assetsMap?: boolean
 
   /**
+   * Whether to strictly enforce asset verification (hash and content-length checks).
+   * When `false`, assets which fail verification are kept (with a warning) instead of
+   * aborting the export.
+   *
+   * Default: `true`
+   */
+  strictAssetVerification?: boolean
+
+  /**
    * Optional filter function to determine whether or not a document should be included
    * in the export. Note that this is run after any built-in document filtering such as
    * draft exclusion, document type filtering, etc.
@@ -224,6 +233,7 @@ export type NormalizedExportOptions = ExportOptions & {
   mode: ExportMode
   compress: boolean
   assetsMap: boolean
+  strictAssetVerification: boolean
   filterDocument: (doc: SanityDocument) => boolean
   transformDocument: (doc: SanityDocument) => Partial<SanityDocument>
 }

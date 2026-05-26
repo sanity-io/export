@@ -59,6 +59,14 @@ exportDataset({
   // Optional, default: `true`
   assetsMap: true,
 
+  // Whether to strictly enforce asset verification (hash and content-length checks against
+  // the `x-sanity-sha1` / `x-sanity-md5` response headers). Set to `false` to keep assets
+  // that fail verification (with a warning) instead of aborting the export.
+  // Caution: disable only when recovering from known-bad source data (e.g. assets where the
+  // originally-uploaded bytes are no longer available server-side).
+  // Optional, default: `true`
+  strictAssetVerification: true,
+
   // A custom filter function for controlling which documents are exported.
   // Optional, default: `() => true`
   filterDocument: (document) => (document.title ?? '').includes('capybara'),

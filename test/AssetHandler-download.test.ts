@@ -253,6 +253,162 @@ describe('AssetHandler download paths', () => {
     expect(assetMap[key]).toMatchObject({originalFilename: 'mead.png'})
   })
 
+  test('rejects when hash headers mismatch and strictAssetVerification is default (true)', async () => {
+    const port = 43218
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {
+        'Content-Type': 'image/png',
+        'x-sanity-sha1': 'deadbeef'.repeat(5),
+        'x-sanity-md5': 'cafebabe'.repeat(4),
+      })
+      createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
+    })
+
+    const tmpDir = joinPath(tmpBase, `verify-default-${Date.now()}`)
+    const handler = new AssetHandler({
+      client: getMockClient(port),
+      tmpDir,
+      maxRetries: 1,
+      retryDelayMs: 0,
+    })
+
+    const assetDoc: AssetDocument = {
+      _id: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
+      _type: 'sanity.imageAsset',
+      url: `http://localhost:${port}/images/mead.png`,
+    }
+
+    handler.queueAssetDownload(
+      assetDoc,
+      'images/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
+    )
+    await expect(handler.finish()).rejects.toThrow('Failed to download asset')
+  })
+
+  test('warns and continues when hash headers mismatch and strictAssetVerification is false', async () => {
+    const port = 43218
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {
+        'Content-Type': 'image/png',
+        'x-sanity-sha1': 'deadbeef'.repeat(5),
+        'x-sanity-md5': 'cafebabe'.repeat(4),
+      })
+      createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
+    })
+
+    const tmpDir = joinPath(tmpBase, `verify-off-${Date.now()}`)
+    const handler = new AssetHandler({
+      client: getMockClient(port),
+      tmpDir,
+      maxRetries: 1,
+      retryDelayMs: 0,
+      strictAssetVerification: false,
+    })
+
+    const warn = vitest.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const assetDoc: AssetDocument = {
+      _id: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
+      _type: 'sanity.imageAsset',
+      url: `http://localhost:${port}/images/mead.png`,
+      originalFilename: 'mead.png',
+    }
+
+    handler.queueAssetDownload(
+      assetDoc,
+      'images/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
+    )
+    await handler.finish()
+
+    expect(handler.filesWritten).toBe(1)
+    const images = await readdir(joinPath(tmpDir, 'images'))
+    expect(images).toContain('eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png')
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining(`${assetDoc._id} failed asset verification`),
+    )
+
+    warn.mockRestore()
+  })
+
+  test('strictAssetVerification:false keys assetMap entry by locally-computed sha1 (not asset doc _id)', async () => {
+    // We expect the assetMap to be keyed by `${type}-${localSha1}`. This ensures `@sanity/import` finds
+    // the correct metadata for the asset document when there is a mismatch between hashes (e.g. server-sanitized SVGs).
+    const port = 43218
+    const wrongSha1 = 'deadbeef'.repeat(5)
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {
+        'Content-Type': 'image/png',
+        'x-sanity-sha1': wrongSha1,
+      })
+      createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
+    })
+
+    const tmpDir = joinPath(tmpBase, `verify-off-keying-${Date.now()}`)
+    const handler = new AssetHandler({
+      client: getMockClient(port),
+      tmpDir,
+      maxRetries: 1,
+      retryDelayMs: 0,
+      strictAssetVerification: false,
+    })
+
+    const warn = vitest.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const assetDoc: AssetDocument = {
+      _id: `image-${wrongSha1}-512x512-png`,
+      _type: 'sanity.imageAsset',
+      url: `http://localhost:${port}/images/mismatch.png`,
+      originalFilename: 'mead.png',
+    }
+
+    handler.queueAssetDownload(assetDoc, `images/${wrongSha1}-512x512.png`)
+    const assetMap = await handler.finish()
+
+    // Local sha1 of the served bytes (mead.png) is the canonical one
+    const localSha1 = 'eca53d85ec83704801ead6c8be368fd377f8aaef'
+    expect(Object.keys(assetMap)).toEqual([`image-${localSha1}`])
+    expect(Object.keys(assetMap)).not.toContain(`image-${wrongSha1}`)
+    expect(assetMap[`image-${localSha1}`]).toMatchObject({originalFilename: 'mead.png'})
+
+    warn.mockRestore()
+  })
+
+  test('strictAssetVerification:false is a no-op when server omits hash headers', async () => {
+    const port = 43218
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
+      createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
+    })
+
+    const tmpDir = joinPath(tmpBase, `verify-no-headers-${Date.now()}`)
+    const handler = new AssetHandler({
+      client: getMockClient(port),
+      tmpDir,
+      maxRetries: 1,
+      retryDelayMs: 0,
+      strictAssetVerification: false,
+    })
+
+    const warn = vitest.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const assetDoc: AssetDocument = {
+      _id: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
+      _type: 'sanity.imageAsset',
+      url: `http://localhost:${port}/images/mead.png`,
+    }
+
+    handler.queueAssetDownload(
+      assetDoc,
+      'images/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
+    )
+    await handler.finish()
+
+    expect(handler.filesWritten).toBe(1)
+    expect(warn).not.toHaveBeenCalled()
+
+    warn.mockRestore()
+  })
+
   test('adds Authorization header for image assets on cdn.sanity.io', () => {
     const tmpDir = joinPath(tmpBase, `auth-${Date.now()}`)
     const handler = new AssetHandler({
