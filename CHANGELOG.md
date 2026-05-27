@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.2.0](https://github.com/sanity-io/export/compare/v6.1.0...v6.2.0) (2026-05-27)
+
+### Features
+
+- **assets:** add flag to relax strict asset verification ([#51](https://github.com/sanity-io/export/issues/51)) ([f337902](https://github.com/sanity-io/export/commit/f33790281d7be1fd52923110e418a8a9625222e3))
+
 ## [6.1.0](https://github.com/sanity-io/export/compare/v6.0.6...v6.1.0) (2026-02-27)
 
 ### Features
