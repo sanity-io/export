@@ -253,6 +253,45 @@ describe('AssetHandler download paths', () => {
     expect(assetMap[key]).toMatchObject({originalFilename: 'mead.png'})
   })
 
+  test('excludes uploadId from the exported asset metadata', async () => {
+    // `uploadId` is a per-upload token the asset service stamps on both the stored blob and the
+    // asset document, and it declines to delete the blob when the two disagree — that guard stops
+    // a late async delete from wiping a blob that has since been re-uploaded to the same
+    // content-addressed path.
+    const port = 43218
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
+      createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
+    })
+
+    const tmpDir = joinPath(tmpBase, `upload-id-${Date.now()}`)
+    const handler = new AssetHandler({
+      client: getMockClient(port),
+      tmpDir,
+      maxRetries: 1,
+      retryDelayMs: 0,
+    })
+
+    const assetDoc: AssetDocument = {
+      _id: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
+      _type: 'sanity.imageAsset',
+      url: `http://localhost:${port}/images/mead.png`,
+      originalFilename: 'mead.png',
+      uploadId: 'a3813c49e4a10c652e6c8db1a63432ce9946960e',
+    }
+
+    handler.queueAssetDownload(
+      assetDoc,
+      'images/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
+    )
+    const assetMap = await handler.finish()
+
+    const entry = assetMap['image-eca53d85ec83704801ead6c8be368fd377f8aaef']
+    expect(entry).not.toHaveProperty('uploadId')
+    // Genuine user metadata is still exported
+    expect(entry).toMatchObject({originalFilename: 'mead.png'})
+  })
+
   test('rejects when hash headers mismatch and strictAssetVerification is default (true)', async () => {
     const port = 43218
     server = await getServer(port, (_req, res) => {

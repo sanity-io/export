@@ -25,7 +25,16 @@ import type {
 } from './types.js'
 import {rm} from 'node:fs/promises'
 
-const EXCLUDE_PROPS = ['_id', '_type', 'assetId', 'extension', 'mimeType', 'path', 'url']
+const EXCLUDE_PROPS = [
+  '_id',
+  '_type',
+  'assetId',
+  'extension',
+  'mimeType',
+  'path',
+  'uploadId',
+  'url',
+]
 const ACTION_REMOVE = 'remove' as const
 const ACTION_REWRITE = 'rewrite' as const
 
