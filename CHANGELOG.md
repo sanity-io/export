@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [6.2.1](https://github.com/sanity-io/export/compare/v6.2.0...v6.2.1) (2026-08-13)
+
+### Bug Fixes
+
+- exclude uploadId from exported assets ([#57](https://github.com/sanity-io/export/issues/57)) ([6c6ed26](https://github.com/sanity-io/export/commit/6c6ed2615ebfa190be3a728bac0dc917b8593234))
+
 ## [6.2.0](https://github.com/sanity-io/export/compare/v6.1.0...v6.2.0) (2026-05-27)
 
 ### Features
