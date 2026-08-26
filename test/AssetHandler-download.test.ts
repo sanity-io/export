@@ -1,8 +1,10 @@
+import {createHash} from 'node:crypto'
 import {createReadStream} from 'node:fs'
-import {readdir, rm} from 'node:fs/promises'
+import {readdir, readFile, rm} from 'node:fs/promises'
 import http from 'node:http'
 import {tmpdir} from 'node:os'
 import {join as joinPath} from 'node:path'
+import {gzipSync} from 'node:zlib'
 
 import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
 
@@ -446,6 +448,61 @@ describe('AssetHandler download paths', () => {
     expect(warn).not.toHaveBeenCalled()
 
     warn.mockRestore()
+  })
+
+  test('writes gzip-encoded assets byte-for-byte', async () => {
+    // Assets served with `content-encoding: gzip` are piped through a decompress
+    // transform inside get-it. A regression there (8.7.1 through 8.8.1) peeked at
+    // the decompressed stream with read(1) + unshift(), which delivered the first
+    // byte twice: the file lands one byte too long, starting `<<svg`.
+    const svg = Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">${'<rect x="1" y="1" width="2" height="2"/>'.repeat(24)}</svg>`,
+    )
+    const gzipped = gzipSync(svg)
+    const sha1 = createHash('sha1').update(svg).digest('hex')
+
+    const port = 43218
+    server = await getServer(port, (_req, res) => {
+      res.writeHead(200, 'OK', {
+        'Content-Type': 'image/svg+xml',
+        'Content-Encoding': 'gzip',
+        'Content-Length': String(gzipped.length),
+        // Mirrors the CDN for SVG file assets: md5 only, no x-sanity-sha1
+        'x-sanity-md5': createHash('md5').update(svg).digest('hex'),
+      })
+      res.end(gzipped)
+    })
+
+    const tmpDir = joinPath(tmpBase, `gzip-${Date.now()}`)
+    const handler = new AssetHandler({
+      client: getMockClient(port),
+      tmpDir,
+      maxRetries: 1,
+      retryDelayMs: 0,
+    })
+
+    // Whether the corruption lands depends on how many event loop turns pass
+    // before the write stream attaches, so download more than once.
+    const downloads = 5
+    for (let i = 0; i < downloads; i++) {
+      handler.queueAssetDownload(
+        {
+          _id: `file-${sha1}-svg`,
+          _type: 'sanity.fileAsset',
+          url: `http://localhost:${port}/files/sample-${i}.svg`,
+        },
+        `files/sample-${i}.svg`,
+      )
+    }
+    await handler.finish()
+
+    expect(handler.filesWritten).toBe(downloads)
+
+    for (let i = 0; i < downloads; i++) {
+      const written = await readFile(joinPath(tmpDir, 'files', `sample-${i}.svg`))
+      expect(createHash('sha1').update(written).digest('hex')).toBe(sha1)
+      expect(written.length).toBe(svg.length)
+    }
   })
 
   test('adds Authorization header for image assets on cdn.sanity.io', () => {
