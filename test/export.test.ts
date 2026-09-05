@@ -966,7 +966,10 @@ describe('export', () => {
     const [rootDir, ...otherTopLevel] = await readdir(cwd)
 
     // Should have exactly one root directory
-    if (otherTopLevel.length !== 0) throw new Error(`Expected exactly one root directory in archive, found ${otherTopLevel.length}`) 
+    if (otherTopLevel.length !== 0)
+      throw new Error(
+        `Expected exactly one root directory in archive, found ${otherTopLevel.length}`,
+      )
     if (!rootDir) throw new Error('Expected at least one top-level entry in archive, found none')
 
     // Root directory name should match the source-export-timestamp pattern

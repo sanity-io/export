@@ -9,7 +9,10 @@ import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
 import {AssetHandler} from '../src/AssetHandler.js'
 import type {AssetDocument, SanityClientLike} from '../src/types.js'
 
-const TEST_PORT = 43217
+// Every test below binds its own port in the 4323x range, reserved for this file. Do not
+// share one across tests: each test tears its server down afterwards, and reusing the port
+// for the next one gets the connection pool an `ECONNRESET` on a socket it thinks is live.
+const TEST_PORT = 43230
 
 const getMockClient = (port: number): SanityClientLike => ({
   getUrl: (path: string) => `http://localhost:${port}${path}`,
@@ -76,7 +79,7 @@ describe('AssetHandler download paths', () => {
   })
 
   test('warns and continues on 404 asset response', async () => {
-    const port = 43218
+    const port = 43231
     server = await getServer(port, (_req, res) => {
       res.writeHead(404, 'Not Found')
       res.end('Not found')
@@ -103,17 +106,13 @@ describe('AssetHandler download paths', () => {
 
     expect(handler.filesWritten).toBe(0)
     expect(assetMap).toEqual({})
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('%d'),
-      404,
-      assetDoc._id,
-    )
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('%d'), 404, assetDoc._id)
 
     warn.mockRestore()
   })
 
   test('warns and continues on 401 asset response', async () => {
-    const port = 43218
+    const port = 43232
     server = await getServer(port, (_req, res) => {
       res.writeHead(401, 'Unauthorized')
       res.end('Unauthorized')
@@ -139,17 +138,13 @@ describe('AssetHandler download paths', () => {
     await handler.finish()
 
     expect(handler.filesWritten).toBe(0)
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('%d'),
-      401,
-      assetDoc._id,
-    )
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('%d'), 401, assetDoc._id)
 
     warn.mockRestore()
   })
 
   test('warns and continues on 403 asset response', async () => {
-    const port = 43218
+    const port = 43233
     server = await getServer(port, (_req, res) => {
       res.writeHead(403, 'Forbidden')
       res.end('Forbidden')
@@ -175,17 +170,13 @@ describe('AssetHandler download paths', () => {
     await handler.finish()
 
     expect(handler.filesWritten).toBe(0)
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('%d'),
-      403,
-      assetDoc._id,
-    )
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('%d'), 403, assetDoc._id)
 
     warn.mockRestore()
   })
 
   test('does not retry on 4xx client errors', async () => {
-    const port = 43218
+    const port = 43234
     let requestCount = 0
     server = await getServer(port, (_req, res) => {
       requestCount++
@@ -216,7 +207,7 @@ describe('AssetHandler download paths', () => {
   })
 
   test('successfully downloads asset', async () => {
-    const port = 43218
+    const port = 43235
     server = await getServer(port, (req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
       createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
@@ -237,7 +228,10 @@ describe('AssetHandler download paths', () => {
       originalFilename: 'mead.png',
     }
 
-    handler.queueAssetDownload(assetDoc, 'images/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png')
+    handler.queueAssetDownload(
+      assetDoc,
+      'images/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
+    )
     const assetMap = await handler.finish()
 
     expect(handler.filesWritten).toBe(1)
@@ -258,7 +252,7 @@ describe('AssetHandler download paths', () => {
     // asset document, and it declines to delete the blob when the two disagree — that guard stops
     // a late async delete from wiping a blob that has since been re-uploaded to the same
     // content-addressed path.
-    const port = 43218
+    const port = 43236
     server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
       createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
@@ -293,7 +287,7 @@ describe('AssetHandler download paths', () => {
   })
 
   test('rejects when hash headers mismatch and strictAssetVerification is default (true)', async () => {
-    const port = 43218
+    const port = 43237
     server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {
         'Content-Type': 'image/png',
@@ -325,7 +319,7 @@ describe('AssetHandler download paths', () => {
   })
 
   test('warns and continues when hash headers mismatch and strictAssetVerification is false', async () => {
-    const port = 43218
+    const port = 43238
     server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {
         'Content-Type': 'image/png',
@@ -372,7 +366,7 @@ describe('AssetHandler download paths', () => {
   test('strictAssetVerification:false keys assetMap entry by locally-computed sha1 (not asset doc _id)', async () => {
     // We expect the assetMap to be keyed by `${type}-${localSha1}`. This ensures `@sanity/import` finds
     // the correct metadata for the asset document when there is a mismatch between hashes (e.g. server-sanitized SVGs).
-    const port = 43218
+    const port = 43239
     const wrongSha1 = 'deadbeef'.repeat(5)
     server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {
@@ -413,7 +407,7 @@ describe('AssetHandler download paths', () => {
   })
 
   test('strictAssetVerification:false is a no-op when server omits hash headers', async () => {
-    const port = 43218
+    const port = 43240
     server = await getServer(port, (_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
       createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)

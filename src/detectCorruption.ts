@@ -1,13 +1,20 @@
 import {createReadStream, existsSync, statSync} from 'node:fs'
 import {basename, join} from 'node:path'
 import {createInterface} from 'node:readline'
-import type {Readable} from 'node:stream'
+import {Readable, Writable} from 'node:stream'
+import {pipeline} from 'node:stream/promises'
 import {createGunzip} from 'node:zlib'
 
-import tarStream from 'tar-stream'
+import {createTarDecoder, type ParsedTarEntry} from 'modern-tar'
 
 // U+FFFD replacement character - appears when invalid UTF-8 sequences are decoded
 const REPLACEMENT_CHAR = '\uFFFD'
+
+/** The shape of `createTarDecoder()`, see the note in {@link scanTarGz}. */
+interface TarDecoder {
+  readable: ReadableStream<ParsedTarEntry>
+  writable: WritableStream<Uint8Array>
+}
 
 /**
  * Information about corruption found on a specific line
@@ -120,75 +127,82 @@ export async function scanNdjsonFile(filePath: string): Promise<ScanResult> {
  * @public
  */
 export async function scanTarGz(filePath: string): Promise<ScanResult> {
-  const extract = tarStream.extract()
-
   const results = new Map<string, CorruptionInfo[]>()
   const scannedFiles: string[] = []
   const targetFiles = ['data.ndjson', 'asset.json']
 
-  return new Promise((resolve, reject) => {
-    extract.on('entry', (header, stream, next) => {
-      const fileBasename = basename(header.name)
+  // `strict` makes the decoder reject a truncated archive or a bad header checksum rather
+  // than quietly stopping at the damage. That matters here more than anywhere: reporting a
+  // damaged export as "no corruption detected" is the one answer this tool must never give.
+  //
+  // The annotation restores the types: modern-tar declares this return value as a
+  // `ReadableWritablePair`, which node's types only declare inside `node:stream/web` and
+  // not globally, so the declaration does not resolve and everything read off the decoder
+  // would otherwise be untyped.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const decoder: TarDecoder = createTarDecoder({strict: true})
 
-      if (targetFiles.includes(fileBasename)) {
-        scannedFiles.push(header.name)
-        const chunks: Buffer[] = []
+  // Fed through the writable side rather than `pipeThrough()`, which for the same reason
+  // yields entries typed as `unknown`.
+  const feeding = pipeline(
+    createReadStream(filePath).pipe(createGunzip()),
+    Writable.fromWeb(decoder.writable),
+  )
 
-        stream.on('data', (chunk: Buffer) => {
-          chunks.push(chunk)
-        })
+  // A read or gunzip failure aborts the decoder, so the loop below is what actually
+  // reports it. The handler is attached up front so throwing out of that loop cannot leave
+  // this rejection unhandled, and awaited in `finally` purely as a backstop, so that a
+  // source failure can never end up reported as a clean scan.
+  feeding.catch(() => {})
 
-        stream.on('end', () => {
-          // Combine all chunks and convert to string
-          const content = Buffer.concat(chunks).toString('utf8')
-          const lines = content.split(/\r?\n/)
-          const corruptions: CorruptionInfo[] = []
-
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i]
-            if (line !== undefined && line.length > 0) {
-              const corruption = scanLine(line, i + 1)
-              if (corruption) {
-                corruptions.push(corruption)
-              }
-            }
-          }
-
-          if (corruptions.length > 0) {
-            results.set(header.name, corruptions)
-          }
-          next()
-        })
-
-        stream.on('error', reject)
-      } else {
-        // Skip this entry
-        stream.on('end', next)
-        stream.resume()
-      }
-    })
-
-    extract.on('finish', () => {
-      let totalCorruptedLines = 0
-      for (const corruptions of results.values()) {
-        totalCorruptedLines += corruptions.length
+  try {
+    for await (const entry of decoder.readable) {
+      if (!targetFiles.includes(basename(entry.header.name))) {
+        // The body of every entry has to be disposed of, or the decoder stalls
+        await entry.body.cancel()
+        continue
       }
 
-      resolve({
-        corrupted: results.size > 0,
-        files: results,
-        totalCorruptedLines,
-        scannedFiles,
-      })
-    })
+      scannedFiles.push(entry.header.name)
 
-    extract.on('error', reject)
+      const chunks: Uint8Array[] = []
+      for await (const chunk of entry.body) {
+        chunks.push(chunk)
+      }
 
-    const gunzip = createGunzip()
-    gunzip.on('error', reject)
+      const content = Buffer.concat(chunks).toString('utf8')
+      const corruptions: CorruptionInfo[] = []
+      const lines = content.split(/\r?\n/)
 
-    createReadStream(filePath).pipe(gunzip).pipe(extract)
-  })
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        if (line !== undefined && line.length > 0) {
+          const corruption = scanLine(line, i + 1)
+          if (corruption) {
+            corruptions.push(corruption)
+          }
+        }
+      }
+
+      if (corruptions.length > 0) {
+        results.set(entry.header.name, corruptions)
+      }
+    }
+  } finally {
+    await feeding
+  }
+
+  let totalCorruptedLines = 0
+  for (const corruptions of results.values()) {
+    totalCorruptedLines += corruptions.length
+  }
+
+  return {
+    corrupted: results.size > 0,
+    files: results,
+    totalCorruptedLines,
+    scannedFiles,
+  }
 }
 
 /**
@@ -210,9 +224,7 @@ export async function scanDirectory(dirPath: string): Promise<ScanResult> {
   }
 
   if (foundFiles.length === 0) {
-    throw new Error(
-      `No data.ndjson or assets.json found in directory: ${dirPath}`,
-    )
+    throw new Error(`No data.ndjson or assets.json found in directory: ${dirPath}`)
   }
 
   const results = new Map<string, CorruptionInfo[]>()

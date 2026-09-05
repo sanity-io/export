@@ -234,7 +234,11 @@ describe('concat', () => {
 
 describe('isWritableStream', () => {
   test('returns true for Writable stream', () => {
-    const writable = new Writable({write(_chunk, _enc, cb) { cb() }})
+    const writable = new Writable({
+      write(_chunk, _enc, cb) {
+        cb()
+      },
+    })
     expect(isWritableStream(writable)).toBe(true)
   })
 
@@ -256,7 +260,11 @@ describe('isWritableStream', () => {
   })
 
   test('returns false for Readable stream', () => {
-    const readable = new Readable({read() { this.push(null) }})
+    const readable = new Readable({
+      read() {
+        this.push(null)
+      },
+    })
     expect(isWritableStream(readable)).toBe(false)
   })
 })
