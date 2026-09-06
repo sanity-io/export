@@ -966,7 +966,10 @@ describe('export', () => {
     const [rootDir, ...otherTopLevel] = await readdir(cwd)
 
     // Should have exactly one root directory
-    if (otherTopLevel.length !== 0) throw new Error(`Expected exactly one root directory in archive, found ${otherTopLevel.length}`) 
+    if (otherTopLevel.length !== 0)
+      throw new Error(
+        `Expected exactly one root directory in archive, found ${otherTopLevel.length}`,
+      )
     if (!rootDir) throw new Error('Expected at least one top-level entry in archive, found none')
 
     // Root directory name should match the source-export-timestamp pattern
@@ -1165,10 +1168,10 @@ describe('export', () => {
 
     const options = await getOptions({port})
 
-    /* eslint-disable @typescript-eslint/no-deprecated */
+    /* oxlint-disable typescript/no-deprecated */
     await expect(deprecatedExport(options)).resolves.toMatchObject({documentCount: 0})
     await expect(deprecatedExport(options)).resolves.toMatchObject({documentCount: 0})
-    /* eslint-enable @typescript-eslint/no-deprecated */
+    /* oxlint-enable typescript/no-deprecated */
 
     // Give the warning event a chance to fire
     await new Promise((resolve) => setImmediate(resolve))

@@ -8,10 +8,11 @@ import {mkdir, mkdtemp, readdir, readFile, rm, stat} from 'node:fs/promises'
 import {basename, join as joinPath} from 'node:path'
 
 import {createClient} from '@sanity/client'
-import nock from 'nock'
-import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
+import {createMockFetch, streamBody, type MockFetch, type MockResponseDef} from 'get-it/mock'
+import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
 
 import {exportDataset} from '../src/export.js'
+import {setFetchImplementation} from '../src/requestStream.js'
 import {ndjsonToArray, untarExportedFile} from './helpers/index.js'
 import {newTestRunId, withTmpDir} from './helpers/suite.js'
 
@@ -38,7 +39,7 @@ interface ApiMockResponse {
 
 interface ApiMock {
   url: string
-  query?: Record<string, string>
+  query?: Record<string, string | number | boolean>
   responses: Array<ApiMockResponse>
 }
 
@@ -47,25 +48,29 @@ interface TestData {
   error?: string
 }
 
-interface SetupNockParams {
-  url: string
-  query?: ApiMock['query'] | undefined
-  response: ApiMockResponse
+/**
+ * Assets are served as binary, so they have to go through a `streamBody()` script -
+ * a plain `body` is only ever encoded as text.
+ */
+const getResponseBody = async (response: ApiMockResponse): Promise<MockResponseDef> => {
+  if (response.bodyFromFile) {
+    const file = await readFile(joinPath(fixturesDirectory, response.bodyFromFile))
+    return {body: streamBody(new Uint8Array(file))}
+  }
+
+  return response.body === undefined ? {} : {body: response.body}
 }
 
-const setupNock = async ({url, query = {}, response}: SetupNockParams): Promise<nock.Scope> => {
-  nock.disableNetConnect()
+const registerApiMock = async (mock: MockFetch, apiMock: ApiMock): Promise<void> => {
+  const url = new URL(apiMock.url)
+  for (const [key, value] of Object.entries(apiMock.query ?? {})) {
+    url.searchParams.set(key, String(value))
+  }
 
-  const {origin, pathname} = URL.parse(url) || {}
-
-  const body = response.bodyFromFile
-    ? await readFile(joinPath(fixturesDirectory, response.bodyFromFile))
-    : response.body
-
-  return nock(origin ?? '')
-    .get(pathname || '/')
-    .query(query)
-    .reply(response.code ? response.code : 200, body)
+  const handler = mock.on('GET', url.toString())
+  for (const response of apiMock.responses) {
+    handler.respond({status: response.code ?? 200, ...(await getResponseBody(response))})
+  }
 }
 
 interface TestCase {
@@ -75,6 +80,8 @@ interface TestCase {
 
 describe('export integration tests', async () => {
   let testRunPath: string
+  let mock: MockFetch
+
   beforeAll(async () => {
     await mkdir(joinPath(import.meta.dirname, 'testruns'), {recursive: true})
     testRunPath = await mkdtemp(
@@ -83,10 +90,19 @@ describe('export integration tests', async () => {
   })
 
   afterAll(async () => {
-    nock.cleanAll()
     if (process.env.DO_NOT_DELETE !== 'true') {
       await rm(testRunPath, {recursive: true, force: true})
     }
+  })
+
+  beforeEach(() => {
+    // Any request that isn't explicitly mocked below rejects, so no test can reach the network
+    mock = createMockFetch()
+    setFetchImplementation(mock.fetch)
+  })
+
+  afterEach(() => {
+    setFetchImplementation(undefined)
   })
 
   const testFiles = (await readdir(fixturesDirectory)).filter((file) => file.endsWith('.json'))
@@ -103,9 +119,7 @@ describe('export integration tests', async () => {
     await withTmpDir(testRunPath, async (exportDir: string) => {
       const exportFilePath = joinPath(exportDir, 'out.tar.gz')
       for (const apiMock of testData.apiMocks) {
-        for (const response of apiMock.responses) {
-          await setupNock({url: apiMock.url, query: apiMock.query, response})
-        }
+        await registerApiMock(mock, apiMock)
       }
 
       const client = createClient({
@@ -135,7 +149,7 @@ describe('export integration tests', async () => {
         expect(options.onProgress).toHaveBeenCalled()
       }
 
-      expect(nock.isDone()).toBeTruthy()
+      mock.assertAllConsumed()
     })
   })
 })

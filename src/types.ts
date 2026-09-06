@@ -268,7 +268,7 @@ export interface RequestStreamOptions {
  */
 export interface ResponseStream extends NodeJS.ReadableStream {
   statusCode?: number
-  headers?: Record<string, string | string[] | undefined>
+  headers?: Headers
 }
 
 /**

@@ -115,7 +115,13 @@ describe('validateOptions', () => {
   })
 
   test('throws if boolean flags are not boolean', () => {
-    for (const flag of ['assets', 'raw', 'compress', 'drafts', 'strictAssetVerification'] as const) {
+    for (const flag of [
+      'assets',
+      'raw',
+      'compress',
+      'drafts',
+      'strictAssetVerification',
+    ] as const) {
       expect(() =>
         // @ts-expect-error Testing invalid boolean
         validateOptions({...validOptions(), [flag]: 'yes'}),
