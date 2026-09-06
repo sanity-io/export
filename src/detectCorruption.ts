@@ -139,7 +139,7 @@ export async function scanTarGz(filePath: string): Promise<ScanResult> {
   // `ReadableWritablePair`, which node's types only declare inside `node:stream/web` and
   // not globally, so the declaration does not resolve and everything read off the decoder
   // would otherwise be untyped.
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  // oxlint-disable-next-line typescript/no-unsafe-assignment
   const decoder: TarDecoder = createTarDecoder({strict: true})
 
   // Fed through the writable side rather than `pipeThrough()`, which for the same reason

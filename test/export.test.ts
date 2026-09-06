@@ -1168,10 +1168,10 @@ describe('export', () => {
 
     const options = await getOptions({port})
 
-    /* eslint-disable @typescript-eslint/no-deprecated */
+    /* oxlint-disable typescript/no-deprecated */
     await expect(deprecatedExport(options)).resolves.toMatchObject({documentCount: 0})
     await expect(deprecatedExport(options)).resolves.toMatchObject({documentCount: 0})
-    /* eslint-enable @typescript-eslint/no-deprecated */
+    /* oxlint-enable typescript/no-deprecated */
 
     // Give the warning event a chance to fire
     await new Promise((resolve) => setImmediate(resolve))

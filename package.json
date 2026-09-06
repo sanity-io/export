@@ -46,7 +46,7 @@
     "build": "tsc",
     "clean": "rimraf dist",
     "format": "oxfmt",
-    "lint": "eslint .",
+    "lint": "oxlint",
     "prepublishOnly": "npm run build",
     "test": "vitest",
     "typecheck": "tsc --noEmit"

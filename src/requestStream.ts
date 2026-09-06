@@ -94,7 +94,7 @@ export async function requestStream(options: RequestStreamOptions): Promise<Resp
 
   await tryThrowFriendlyError(error)
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // oxlint-disable-next-line typescript/no-unnecessary-condition
   if (!error) {
     throw new Error(`Export: Failed to fetch ${options.url}: Unknown error`)
   }
