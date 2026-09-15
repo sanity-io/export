@@ -55,7 +55,7 @@
     "get-it": "^9.5.4",
     "json-stream-stringify": "^3.1.7",
     "modern-tar": "^0.8.5",
-    "obug": "^2.2.1",
+    "obug": "^3.0.0",
     "p-queue": "^9.0.1"
   },
   "devDependencies": {
