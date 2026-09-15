@@ -7,8 +7,6 @@ import {finished, pipeline} from 'node:stream/promises'
 import {deprecate} from 'node:util'
 import {constants as zlib, createGzip} from 'node:zlib'
 
-import {JsonStreamStringify} from 'json-stream-stringify'
-
 import {isWritableStream, split, throughObj} from './util/streamHelpers.js'
 import {createTarArchive} from './util/tarArchive.js'
 import {AssetHandler} from './AssetHandler.js'
@@ -20,6 +18,7 @@ import {getDocumentCursorStream} from './getDocumentCursorStream.js'
 import {getDocumentsStream} from './getDocumentsStream.js'
 import {logFirstChunk} from './logFirstChunk.js'
 import {rejectOnApiError} from './rejectOnApiError.js'
+import {stringifyAssetMap} from './stringifyAssetMap.js'
 import {stringifyStream} from './stringifyStream.js'
 import {tryParseJson} from './tryParseJson.js'
 import type {
@@ -269,7 +268,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
         })
 
         const assetsStream = createWriteStream(assetsPath)
-        await pipeline(new JsonStreamStringify(assetMap), assetsStream)
+        await pipeline(stringifyAssetMap(assetMap), assetsStream)
 
         if (options.assetsMap) {
           await archive.addFile(assetsPath, `${prefix}/assets.json`)
