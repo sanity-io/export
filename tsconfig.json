@@ -3,6 +3,7 @@
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],
+    "types": ["node"],
     "module": "node20",
     "strict": true,
     "declaration": true,
