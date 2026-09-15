@@ -1,6 +1,5 @@
 import {createReadStream, createWriteStream} from 'node:fs'
 import {mkdir, readdir, readFile, rm, stat} from 'node:fs/promises'
-import http from 'node:http'
 import os from 'node:os'
 import {join as joinPath} from 'node:path'
 
@@ -10,6 +9,7 @@ import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
 import {MODE_CURSOR} from '../src/constants.js'
 import deprecatedExport, {exportDataset} from '../src/export.js'
 import {assertContents} from './helpers/index.js'
+import {getServer, type ServerHandle} from './helpers/server.js'
 import type {ExportProgress, SanityClientLike, SanityDocument} from '../src/types.js'
 
 const OUTPUT_ROOT_DIR = joinPath(os.tmpdir(), 'sanity-export-tests')
@@ -44,36 +44,6 @@ const getOptions = async ({port, maxRetries = 2, types, ...rest}: GetOptionsPara
   }
 }
 
-interface ServerHandle {
-  close: () => Promise<void>
-}
-
-const getServer = (
-  port: number,
-  onRequest: (req: http.IncomingMessage, res: http.ServerResponse) => void,
-): Promise<ServerHandle> => {
-  const server = http.createServer(onRequest)
-
-  function close(): Promise<void> {
-    return new Promise((success, fail) => {
-      server.close((err) => {
-        if (err) {
-          fail(err)
-        } else {
-          success()
-        }
-      })
-    })
-  }
-
-  return new Promise((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(port, '127.0.0.1', () => {
-      resolve({close})
-    })
-  })
-}
-
 afterAll(async () => {
   await rm(OUTPUT_ROOT_DIR, {recursive: true})
 })
@@ -89,8 +59,7 @@ describe('export', () => {
   })
 
   test('skips system documents', async () => {
-    const port = 43213
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end(
         JSON.stringify({
@@ -100,6 +69,7 @@ describe('export', () => {
         }),
       )
     })
+    const {port} = server
     const options = await getOptions({port})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -110,8 +80,7 @@ describe('export', () => {
   })
 
   test('includes releases by default', async () => {
-    const port = 43213
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end(
         JSON.stringify({
@@ -121,6 +90,7 @@ describe('export', () => {
         }),
       )
     })
+    const {port} = server
     const options = await getOptions({port})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -131,8 +101,7 @@ describe('export', () => {
   })
 
   test('includes releases when `drafts` is set to `true`', async () => {
-    const port = 43213
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end(
         JSON.stringify({
@@ -142,6 +111,7 @@ describe('export', () => {
         }),
       )
     })
+    const {port} = server
     const options = await getOptions({port, drafts: true}) // this is the default
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -152,8 +122,7 @@ describe('export', () => {
   })
 
   test('skips releases when drafts are excluded', async () => {
-    const port = 43213
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end(
         JSON.stringify({
@@ -163,6 +132,7 @@ describe('export', () => {
         }),
       )
     })
+    const {port} = server
     const options = await getOptions({port, drafts: false})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -173,14 +143,13 @@ describe('export', () => {
   })
 
   test('can skip provided types', async () => {
-    const port = 43214
     const doc = {
       _id: 'this-is-my-jam',
       _type: 'i-want-this',
       title: 'Please include me',
     }
 
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(
         JSON.stringify({
@@ -193,6 +162,7 @@ describe('export', () => {
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port, types: ['i-want-this']})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -207,7 +177,6 @@ describe('export', () => {
   })
 
   test('successfully exports a (very) small dataset', async () => {
-    const port = 43215
     const documents = [
       {
         _id: 'first-but-not-the-only',
@@ -220,13 +189,14 @@ describe('export', () => {
         title: 'Goodbye, cruel world!',
       },
     ]
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(documents[0]))
       res.write('\n')
       res.write(JSON.stringify(documents[1]))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -241,7 +211,6 @@ describe('export', () => {
   })
 
   test('includes assets with custom metadata in default mode', async () => {
-    const port = 43216
     const doc = {
       _id: 'my-article',
       _type: 'article',
@@ -256,7 +225,7 @@ describe('export', () => {
       },
     }
 
-    server = await getServer(port, (req, res) => {
+    server = await getServer((req, res) => {
       const url = req.url || '/'
       if (url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
@@ -293,6 +262,7 @@ describe('export', () => {
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -318,7 +288,6 @@ describe('export', () => {
   })
 
   test('retries asset downloads on server error', async () => {
-    const port = 43216
     const doc = {
       _id: 'my-article',
       _type: 'article',
@@ -330,7 +299,7 @@ describe('export', () => {
     }
 
     let attempt = 0
-    server = await getServer(port, (req, res) => {
+    server = await getServer((req, res) => {
       const url = req.url || '/'
       if (url.startsWith('/images')) {
         if (++attempt === 1) {
@@ -367,6 +336,7 @@ describe('export', () => {
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -392,7 +362,6 @@ describe('export', () => {
   })
 
   test('includes asset documents verbatim in `raw` mode', async () => {
-    const port = 43216
     const doc = {
       _id: 'my-article',
       _type: 'article',
@@ -406,13 +375,13 @@ describe('export', () => {
     const assetDoc = {
       _id: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
       _type: 'sanity.imageAsset',
-      url: `http://localhost:${port}/images/ppsg7ml5/test/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png`,
+      url: `https://cdn.sanity.io/images/ppsg7ml5/test/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png`,
       path: 'images/ppsg7ml5/test/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
       originalFilename: 'mead.png',
       altText: 'Logo of mead',
     }
 
-    server = await getServer(port, (req, res) => {
+    server = await getServer((req, res) => {
       const url = req.url || '/'
       if (url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
@@ -425,6 +394,7 @@ describe('export', () => {
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port, raw: true})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -440,7 +410,6 @@ describe('export', () => {
   })
 
   test('can exclude assets if specified', async () => {
-    const port = 43216
     const doc = {
       _id: 'my-article',
       _type: 'article',
@@ -451,7 +420,7 @@ describe('export', () => {
       },
     }
 
-    server = await getServer(port, (req, res) => {
+    server = await getServer((req, res) => {
       const url = req.url || '/'
       if (url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
@@ -473,6 +442,7 @@ describe('export', () => {
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port, assets: false})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -489,7 +459,6 @@ describe('export', () => {
   })
 
   test('can exclude drafts if specified', async () => {
-    const port = 43217
     const doc = {
       _id: 'my-article',
       _type: 'article',
@@ -501,7 +470,7 @@ describe('export', () => {
       title: 'Nicer logo',
     }
 
-    server = await getServer(port, (req, res) => {
+    server = await getServer((req, res) => {
       const url = req.url || '/'
       if (url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
@@ -514,6 +483,7 @@ describe('export', () => {
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port, drafts: false})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -529,14 +499,15 @@ describe('export', () => {
     })
   })
 
-  test('throws error if unable to reach api', async () => {
-    const options = await getOptions({port: 43210})
+  test('throws error if the api connection fails', async () => {
+    server = await getServer((req) => req.socket.destroy())
+    const {port} = server
+    const options = await getOptions({port})
     await expect(() => exportDataset(options)).rejects.toThrow(/Failed to fetch/)
   })
 
   test('throws error if api responds with 5xx error consistently', async () => {
-    const port = 43211
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(500, 'Internal Server Error', {'Content-Type': 'application/json'})
       res.end(
         JSON.stringify({
@@ -546,6 +517,7 @@ describe('export', () => {
         }),
       )
     })
+    const {port} = server
     const options = await getOptions({port})
     await expect(() => exportDataset(options)).rejects.toThrowError(
       'Export: HTTP 500: Some Server Error: Failed to stream from database',
@@ -553,8 +525,7 @@ describe('export', () => {
   })
 
   test('throws error if api responds with 400 error', async () => {
-    const port = 43212
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(400, 'Bad Request', {'Content-Type': 'application/json'})
       res.end(
         JSON.stringify({
@@ -564,6 +535,7 @@ describe('export', () => {
         }),
       )
     })
+    const {port} = server
     const options = await getOptions({port})
     await expect(() => exportDataset(options)).rejects.toThrowError(
       'Export: HTTP 400: Bad Request: `@sanity/export` version too old, please update',
@@ -571,7 +543,6 @@ describe('export', () => {
   })
 
   test('can export error like documents', async () => {
-    const port = 43217
     const doc = {
       _id: 'my-article',
       _type: 'article',
@@ -579,11 +550,12 @@ describe('export', () => {
       statusCode: 500,
     }
 
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port, drafts: false})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -608,7 +580,6 @@ describe('export', () => {
   })
 
   test('can export with cursor, multiple cursors', async () => {
-    const port = 43215
     const documents = [
       {
         _id: 'first',
@@ -631,7 +602,7 @@ describe('export', () => {
         title: 'Goodbye again, cruel world!',
       },
     ]
-    server = await getServer(port, (req, res) => {
+    server = await getServer((req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       const url = new URL(req.url || '/', `http://localhost:${port}`)
       switch (url.searchParams.get('nextCursor')) {
@@ -671,6 +642,7 @@ describe('export', () => {
         }
       }
     })
+    const {port} = server
     const options = await getOptions({port, mode: MODE_CURSOR})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -684,7 +656,6 @@ describe('export', () => {
     })
   })
   test('can export with cursor, no cursor', async () => {
-    const port = 43215
     const documents = [
       {
         _id: 'first',
@@ -707,7 +678,7 @@ describe('export', () => {
         title: 'Goodbye again, cruel world!',
       },
     ]
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       for (const document of documents) {
         res.write(JSON.stringify(document))
@@ -715,6 +686,7 @@ describe('export', () => {
       }
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port, mode: MODE_CURSOR})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -728,7 +700,6 @@ describe('export', () => {
     })
   })
   test('can export arrays with empty strings, eg. from a table generated from @sanity/table', async () => {
-    const port = 43215
     const documents = [
       {
         _id: 'full-table',
@@ -767,13 +738,14 @@ describe('export', () => {
         },
       },
     ]
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(documents[0]))
       res.write('\n')
       res.write(JSON.stringify(documents[1]))
       res.end()
     })
+    const {port} = server
 
     const options = await getOptions({port})
     const result = await exportDataset(options)
@@ -789,14 +761,13 @@ describe('export', () => {
   })
 
   test('can filter documents', async () => {
-    const port = 43218
     const doc = {
       _id: 'this-is-my-jam',
       _type: 'track',
       title: 'Please include me',
     }
 
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(
         JSON.stringify({
@@ -809,6 +780,7 @@ describe('export', () => {
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({
       port,
       filterDocument: ({_id}) => _id === 'this-is-my-jam',
@@ -826,13 +798,12 @@ describe('export', () => {
   })
 
   test('can transform documents', async () => {
-    const port = 43219
     const doc = {
       _id: 'this-is-my-jam',
       title: 'What Was That',
     }
 
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(
         JSON.stringify({
@@ -844,6 +815,7 @@ describe('export', () => {
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({
       port,
       transformDocument: ({_id}) => ({_id: _id.toUpperCase(), _type: 'foo'}),
@@ -861,8 +833,7 @@ describe('export', () => {
   })
 
   test('skips version documents when drafts is false', async () => {
-    const port = 43213
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end(
         JSON.stringify({
@@ -872,6 +843,7 @@ describe('export', () => {
         }),
       )
     })
+    const {port} = server
     const options = await getOptions({port, drafts: false})
     const result = await exportDataset(options)
     expect(result).toMatchObject({
@@ -882,7 +854,6 @@ describe('export', () => {
   })
 
   test('handles mixed document types correctly', async () => {
-    const port = 43213
     const regularDoc = {
       _id: 'regular-doc',
       _type: 'article',
@@ -904,7 +875,7 @@ describe('export', () => {
       state: 'active',
     }
 
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(regularDoc))
       res.write('\n')
@@ -915,6 +886,7 @@ describe('export', () => {
       res.write(JSON.stringify(releaseDoc))
       res.end()
     })
+    const {port} = server
 
     // Test with drafts: false
     const optionsNoDrafts = await getOptions({port, drafts: false})
@@ -942,12 +914,11 @@ describe('export', () => {
   })
 
   test('archive has correct structure: single root dir, valid NDJSON', async () => {
-    const port = 43215
     const documents = [
       {_id: 'doc-1', _type: 'article', title: 'First'},
       {_id: 'doc-2', _type: 'article', title: 'Second'},
     ]
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       for (const doc of documents) {
         res.write(JSON.stringify(doc))
@@ -955,6 +926,7 @@ describe('export', () => {
       }
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port})
     const result = await exportDataset(options)
 
@@ -1010,17 +982,17 @@ describe('export', () => {
   })
 
   test('supports writable stream as outputPath', async () => {
-    const port = 43215
     const doc = {
       _id: 'stream-doc',
       _type: 'article',
       title: 'Written to stream',
     }
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const randomPath = (Math.random() + 1).toString(36).substring(7)
     const outputDir = joinPath(OUTPUT_ROOT_DIR, randomPath)
     const outputPath = joinPath(outputDir, 'out.tar.gz')
@@ -1044,12 +1016,11 @@ describe('export', () => {
   })
 
   test('onProgress receives correct step names and progress values', async () => {
-    const port = 43215
     const documents = [
       {_id: 'prog-1', _type: 'article', title: 'First'},
       {_id: 'prog-2', _type: 'article', title: 'Second'},
     ]
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       for (const doc of documents) {
         res.write(JSON.stringify(doc))
@@ -1057,6 +1028,7 @@ describe('export', () => {
       }
       res.end()
     })
+    const {port} = server
 
     const progressCalls: ExportProgress[] = []
     const options = await getOptions({
@@ -1087,17 +1059,17 @@ describe('export', () => {
   })
 
   test('exports valid archive with compress: false', async () => {
-    const port = 43215
     const doc = {
       _id: 'uncompressed-doc',
       _type: 'article',
       title: 'No compression',
     }
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.write(JSON.stringify(doc))
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port, compress: false})
     const result = await exportDataset(options)
     expect(result).toMatchObject({documentCount: 1, assetCount: 0})
@@ -1109,8 +1081,7 @@ describe('export', () => {
   })
 
   test('skips assets.json when assetsMap is false', async () => {
-    const port = 43216
-    server = await getServer(port, (req, res) => {
+    server = await getServer((req, res) => {
       const url = req.url || '/'
       if (url.startsWith('/images')) {
         res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
@@ -1137,6 +1108,7 @@ describe('export', () => {
       )
       res.end()
     })
+    const {port} = server
     const options = await getOptions({port, assetsMap: false})
     const result = await exportDataset(options)
     expect(result).toMatchObject({assetCount: 1, documentCount: 1})
@@ -1156,15 +1128,14 @@ describe('export', () => {
   })
 
   test('using default export works but gives deprecation warning (once)', async () => {
-    const port = 44321
-
     const warn = vitest.fn()
     process.on('warning', warn)
 
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
       res.end()
     })
+    const {port} = server
 
     const options = await getOptions({port})
 

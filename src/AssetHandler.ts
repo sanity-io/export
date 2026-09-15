@@ -266,10 +266,7 @@ export class AssetHandler {
     if (
       isImage &&
       token &&
-      (url.hostname === 'cdn.sanity.io' ||
-        url.hostname === 'cdn.sanity.work' ||
-        // used in tests. use a very specific port to avoid conflicts
-        url.host === 'localhost:43216')
+      (url.hostname === 'cdn.sanity.io' || url.hostname === 'cdn.sanity.work')
     ) {
       headers.Authorization = `Bearer ${token}`
       url.searchParams.set('dlRaw', 'true')
