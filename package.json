@@ -1,6 +1,6 @@
 {
   "name": "@sanity/export",
-  "version": "6.2.1",
+  "version": "7.0.0",
   "description": "Export Sanity documents and assets",
   "keywords": [
     "cms",

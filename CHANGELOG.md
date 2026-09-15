@@ -5,6 +5,16 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [7.0.0](https://github.com/sanity-io/export/compare/v6.2.1...v7.0.0) (2026-09-15)
+
+### ⚠ BREAKING CHANGES
+
+- require node 22.12 or higher, minimize dependencies (#58)
+
+### Features
+
+- require node 22.12 or higher, minimize dependencies ([#58](https://github.com/sanity-io/export/issues/58)) ([6bab3ed](https://github.com/sanity-io/export/commit/6bab3ed0106a5ee4db0660376a68461d01c2890d))
+
 ## [6.2.1](https://github.com/sanity-io/export/compare/v6.2.0...v6.2.1) (2026-08-13)
 
 ### Bug Fixes
