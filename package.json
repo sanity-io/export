@@ -52,22 +52,22 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "get-it": "^9.5.1",
-    "json-stream-stringify": "^3.1.6",
-    "modern-tar": "^0.8.4",
-    "obug": "^2.1.4",
+    "get-it": "^9.5.4",
+    "json-stream-stringify": "^3.1.7",
+    "modern-tar": "^0.8.5",
+    "obug": "^2.2.1",
     "p-queue": "^9.0.1"
   },
   "devDependencies": {
-    "@sanity/client": "^7.13.1",
+    "@sanity/client": "^7.27.0",
     "@sanity/semantic-release-preset": "^6.0.0",
-    "@types/node": "^22.12.0",
-    "@vitest/coverage-v8": "^4.0.15",
-    "oxfmt": "^0.66.0",
-    "oxlint": "^1.81.0",
-    "tar": "^7.5.2",
+    "@types/node": "^22.20.2",
+    "@vitest/coverage-v8": "^4.1.11",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
+    "tar": "^7.5.22",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=22.12"
