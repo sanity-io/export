@@ -5,12 +5,12 @@ import {join as joinPath} from 'node:path'
 import {PassThrough, type Writable} from 'node:stream'
 import {finished, pipeline} from 'node:stream/promises'
 import {deprecate} from 'node:util'
-import {constants as zlib} from 'node:zlib'
+import {constants as zlib, createGzip} from 'node:zlib'
 
-import {Pack} from 'tar'
 import {JsonStreamStringify} from 'json-stream-stringify'
 
 import {isWritableStream, split, throughObj} from './util/streamHelpers.js'
+import {createTarArchive} from './util/tarArchive.js'
 import {AssetHandler} from './AssetHandler.js'
 import {DOCUMENT_STREAM_DEBUG_INTERVAL, MODE_STREAM} from './constants.js'
 import {debug} from './debug.js'
@@ -32,20 +32,6 @@ import type {
 import {getSource, validateOptions} from './options.js'
 
 const noop = (): null => null
-
-/** Assert that a value is a readable stream (Pack from tar extends Minipass, which is pipe-compatible but not typed as a Node.js stream) */
-function assertReadableStream(value: unknown): asserts value is NodeJS.ReadableStream {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    !('pipe' in value) ||
-    typeof value.pipe !== 'function' ||
-    !('on' in value) ||
-    typeof value.on !== 'function'
-  ) {
-    throw new TypeError('Expected a readable stream')
-  }
-}
 
 /**
  * Export the dataset with the given options.
@@ -74,24 +60,11 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
   const prefix = `${source.id}-export-${slugDate}`
   const tmpDir = joinPath(tmpdir(), prefix)
   await mkdir(tmpDir, {recursive: true})
-  // Pre-create asset directories so tar.Pack.add() doesn't throw if no assets are downloaded
+  // Pre-create asset directories so archiving doesn't throw if no assets are downloaded
   await mkdir(joinPath(tmpDir, 'files'), {recursive: true})
   await mkdir(joinPath(tmpDir, 'images'), {recursive: true})
 
-  const archive = new Pack({
-    gzip: options.compress
-      ? {level: zlib.Z_DEFAULT_COMPRESSION}
-      : {level: zlib.Z_NO_COMPRESSION},
-    cwd: tmpDir,
-    prefix,
-    portable: true,
-    onwarn: (_code, message) => {
-      debug('Archive warning: %s', message)
-    },
-    onWriteEntry: (entry) => {
-      debug('Adding archive entry: %s', entry.path)
-    },
-  })
+  const archive = createTarArchive()
 
   const dataPath = joinPath(tmpDir, 'data.ndjson')
   const assetsPath = joinPath(tmpDir, 'assets.json')
@@ -131,8 +104,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
     reject = rej
   })
 
-  assertReadableStream(archive)
-  finished(archive)
+  finished(archive.stream)
     .then(() => {
       debug('Archive finished')
     })
@@ -181,7 +153,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
     debug('Got HTTP %d', inputStream.statusCode)
   }
   if ('headers' in inputStream) {
-    debug('Response headers: %o', inputStream.headers)
+    debug('Response headers: %o', Object.fromEntries(inputStream.headers ?? []))
   }
 
   let debugTimer: ReturnType<typeof setTimeout> | null = null
@@ -260,7 +232,7 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
       })
 
       debug('Adding data.ndjson to archive')
-      archive.add('data.ndjson')
+      await archive.addFile(dataPath, `${prefix}/data.ndjson`)
 
       if (!options.raw && options.assets) {
         onProgress({step: 'Downloading assets...'})
@@ -300,33 +272,39 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
         await pipeline(new JsonStreamStringify(assetMap), assetsStream)
 
         if (options.assetsMap) {
-          archive.add('assets.json')
+          await archive.addFile(assetsPath, `${prefix}/assets.json`)
         }
 
         clearInterval(progressInterval)
       } catch (assetErr) {
         clearInterval(progressInterval)
+        archive.abort(assetErr)
         await cleanup().catch(noop) // Try to clean up, but ignore errors here
         reject(assetErr instanceof Error ? assetErr : new Error(`${assetErr}`))
         return
       }
 
       // Add all downloaded assets to archive
-      archive.add('files')
-      archive.add('images')
+      onProgress({step: 'Adding assets to archive...'})
+      await archive.addDirectory(joinPath(tmpDir, 'files'), `${prefix}/files`)
+      await archive.addDirectory(joinPath(tmpDir, 'images'), `${prefix}/images`)
 
       debug('Finalizing archive, flushing streams')
-      onProgress({step: 'Adding assets to archive...'})
-      archive.end()
+      archive.finalize()
     })
     .catch(async (err: unknown) => {
       if (debugTimer !== null) clearTimeout(debugTimer)
       debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
+      archive.abort(err)
       await cleanup().catch(noop)
       reject(err instanceof Error ? err : new Error(`${err}`))
     })
 
-  pipeline(archive, outputStream)
+  const gzip = createGzip({
+    level: options.compress ? zlib.Z_DEFAULT_COMPRESSION : zlib.Z_NO_COMPRESSION,
+  })
+
+  pipeline(archive.stream, gzip, outputStream)
     .then(() => onComplete())
     .catch(onComplete)
 

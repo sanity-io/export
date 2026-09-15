@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
+/* oxlint-disable typescript/no-misused-promises */
 import os from 'node:os'
 import path from 'node:path'
 import {Readable} from 'node:stream'

@@ -40,4 +40,23 @@ describe('extractFirstError', () => {
     const notAggregate = {name: 'AggregateError', errors: ['string']}
     expect(extractFirstError(notAggregate)).toBe(notAggregate)
   })
+
+  test('unwraps the cause of an opaque fetch error', () => {
+    const cause = new Error('connect ECONNREFUSED 127.0.0.1:443')
+    expect(extractFirstError(new TypeError('fetch failed', {cause}))).toBe(cause)
+  })
+
+  test('unwraps an AggregateError nested inside a cause', () => {
+    const first = new Error('connect ECONNREFUSED ::1:443')
+    const cause = new AggregateError([first, new Error('connect ECONNREFUSED 127.0.0.1:443')])
+    expect(extractFirstError(new TypeError('fetch failed', {cause}))).toBe(first)
+  })
+
+  test('gives up on a circular cause chain', () => {
+    const outer = new Error('outer')
+    const inner = new Error('inner')
+    outer.cause = inner
+    inner.cause = outer
+    expect(extractFirstError(outer)).toBeInstanceOf(Error)
+  })
 })

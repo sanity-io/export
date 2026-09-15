@@ -266,10 +266,7 @@ export class AssetHandler {
     if (
       isImage &&
       token &&
-      (url.hostname === 'cdn.sanity.io' ||
-        url.hostname === 'cdn.sanity.work' ||
-        // used in tests. use a very specific port to avoid conflicts
-        url.host === 'localhost:43216')
+      (url.hostname === 'cdn.sanity.io' || url.hostname === 'cdn.sanity.work')
     ) {
       headers.Authorization = `Bearer ${token}`
       url.searchParams.set('dlRaw', 'true')
@@ -350,9 +347,9 @@ export class AssetHandler {
     }
 
     // Verify it against our downloaded stream to make sure we have the same copy
-    const contentLength = stream.headers?.['content-length']
-    const remoteSha1 = stream.headers?.['x-sanity-sha1']
-    const remoteMd5 = stream.headers?.['x-sanity-md5']
+    const contentLength = stream.headers?.get('content-length')
+    const remoteSha1 = stream.headers?.get('x-sanity-sha1')
+    const remoteMd5 = stream.headers?.get('x-sanity-md5')
     const hasHash = Boolean(remoteSha1 || remoteMd5)
     const method = sha1 ? 'sha1' : 'md5'
 
@@ -371,19 +368,17 @@ export class AssetHandler {
             : `sha1 should be ${remoteSha1}, got ${sha1}`),
 
         contentLength &&
-          parseInt(String(contentLength), 10) !== size &&
+          parseInt(contentLength, 10) !== size &&
           `Asset should be ${contentLength} bytes, got ${size}`,
       ]
 
       const detailsString = `Details:\n - ${details.filter(Boolean).join('\n - ')}`
 
       if (this.strictAssetVerification) {
-        await rm(tmpPath, { recursive: true, force: true })
+        await rm(tmpPath, {recursive: true, force: true})
         throw new Error(`Failed to download asset at ${assetDoc.url}. ${detailsString}`)
       } else {
-        console.warn(
-          `⚠ ${assetDoc._id} failed asset verification (ignoring): ${detailsString}`,
-        )
+        console.warn(`⚠ ${assetDoc._id} failed asset verification (ignoring): ${detailsString}`)
       }
     }
 
@@ -442,7 +437,7 @@ export class AssetHandler {
       newItem[key] = this.findAndModify(value, action)
 
       if (typeof newItem[key] === 'undefined') {
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        // oxlint-disable-next-line typescript/no-dynamic-delete
         delete newItem[key]
       }
     }

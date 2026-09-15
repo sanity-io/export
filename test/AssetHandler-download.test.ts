@@ -1,6 +1,5 @@
 import {createReadStream} from 'node:fs'
 import {readdir, rm} from 'node:fs/promises'
-import http from 'node:http'
 import {tmpdir} from 'node:os'
 import {join as joinPath} from 'node:path'
 
@@ -9,32 +8,12 @@ import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
 import {AssetHandler} from '../src/AssetHandler.js'
 import type {AssetDocument, SanityClientLike} from '../src/types.js'
 
-const TEST_PORT = 43217
+import {getServer, type ServerHandle} from './helpers/server.js'
 
-const getMockClient = (port: number): SanityClientLike => ({
-  getUrl: (path: string) => `http://localhost:${port}${path}`,
+const getMockClient = (): SanityClientLike => ({
+  getUrl: (path: string) => `https://example.test${path}`,
   config: () => ({token: 'skTestToken'}),
 })
-
-interface ServerHandle {
-  close: () => Promise<void>
-}
-
-const getServer = (
-  port: number,
-  onRequest: (req: http.IncomingMessage, res: http.ServerResponse) => void,
-): Promise<ServerHandle> => {
-  const server = http.createServer(onRequest)
-  function close(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      server.close((err) => (err ? reject(err) : resolve()))
-    })
-  }
-  return new Promise((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(port, '127.0.0.1', () => resolve({close}))
-  })
-}
 
 const tmpBase = joinPath(tmpdir(), 'asset-handler-download-tests')
 
@@ -55,7 +34,7 @@ describe('AssetHandler download paths', () => {
   test('skips asset document without url', async () => {
     const tmpDir = joinPath(tmpBase, `no-url-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(TEST_PORT),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 1,
       retryDelayMs: 0,
@@ -76,15 +55,15 @@ describe('AssetHandler download paths', () => {
   })
 
   test('warns and continues on 404 asset response', async () => {
-    const port = 43218
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(404, 'Not Found')
       res.end('Not found')
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `404-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 2,
       retryDelayMs: 0,
@@ -103,25 +82,21 @@ describe('AssetHandler download paths', () => {
 
     expect(handler.filesWritten).toBe(0)
     expect(assetMap).toEqual({})
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('%d'),
-      404,
-      assetDoc._id,
-    )
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('%d'), 404, assetDoc._id)
 
     warn.mockRestore()
   })
 
   test('warns and continues on 401 asset response', async () => {
-    const port = 43218
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(401, 'Unauthorized')
       res.end('Unauthorized')
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `401-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 2,
       retryDelayMs: 0,
@@ -139,25 +114,21 @@ describe('AssetHandler download paths', () => {
     await handler.finish()
 
     expect(handler.filesWritten).toBe(0)
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('%d'),
-      401,
-      assetDoc._id,
-    )
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('%d'), 401, assetDoc._id)
 
     warn.mockRestore()
   })
 
   test('warns and continues on 403 asset response', async () => {
-    const port = 43218
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(403, 'Forbidden')
       res.end('Forbidden')
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `403-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 2,
       retryDelayMs: 0,
@@ -175,27 +146,23 @@ describe('AssetHandler download paths', () => {
     await handler.finish()
 
     expect(handler.filesWritten).toBe(0)
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('%d'),
-      403,
-      assetDoc._id,
-    )
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('%d'), 403, assetDoc._id)
 
     warn.mockRestore()
   })
 
   test('does not retry on 4xx client errors', async () => {
-    const port = 43218
     let requestCount = 0
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       requestCount++
       res.writeHead(400, 'Bad Request')
       res.end(JSON.stringify({error: 'Invalid asset request'}))
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `4xx-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 5,
       retryDelayMs: 0,
@@ -216,15 +183,15 @@ describe('AssetHandler download paths', () => {
   })
 
   test('successfully downloads asset', async () => {
-    const port = 43218
-    server = await getServer(port, (req, res) => {
+    server = await getServer((req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
       createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `success-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 2,
       retryDelayMs: 0,
@@ -237,7 +204,10 @@ describe('AssetHandler download paths', () => {
       originalFilename: 'mead.png',
     }
 
-    handler.queueAssetDownload(assetDoc, 'images/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png')
+    handler.queueAssetDownload(
+      assetDoc,
+      'images/eca53d85ec83704801ead6c8be368fd377f8aaef-512x512.png',
+    )
     const assetMap = await handler.finish()
 
     expect(handler.filesWritten).toBe(1)
@@ -258,15 +228,15 @@ describe('AssetHandler download paths', () => {
     // asset document, and it declines to delete the blob when the two disagree — that guard stops
     // a late async delete from wiping a blob that has since been re-uploaded to the same
     // content-addressed path.
-    const port = 43218
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
       createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `upload-id-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 1,
       retryDelayMs: 0,
@@ -293,8 +263,7 @@ describe('AssetHandler download paths', () => {
   })
 
   test('rejects when hash headers mismatch and strictAssetVerification is default (true)', async () => {
-    const port = 43218
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {
         'Content-Type': 'image/png',
         'x-sanity-sha1': 'deadbeef'.repeat(5),
@@ -302,10 +271,11 @@ describe('AssetHandler download paths', () => {
       })
       createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `verify-default-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 1,
       retryDelayMs: 0,
@@ -325,8 +295,7 @@ describe('AssetHandler download paths', () => {
   })
 
   test('warns and continues when hash headers mismatch and strictAssetVerification is false', async () => {
-    const port = 43218
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {
         'Content-Type': 'image/png',
         'x-sanity-sha1': 'deadbeef'.repeat(5),
@@ -334,10 +303,11 @@ describe('AssetHandler download paths', () => {
       })
       createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `verify-off-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 1,
       retryDelayMs: 0,
@@ -372,19 +342,19 @@ describe('AssetHandler download paths', () => {
   test('strictAssetVerification:false keys assetMap entry by locally-computed sha1 (not asset doc _id)', async () => {
     // We expect the assetMap to be keyed by `${type}-${localSha1}`. This ensures `@sanity/import` finds
     // the correct metadata for the asset document when there is a mismatch between hashes (e.g. server-sanitized SVGs).
-    const port = 43218
     const wrongSha1 = 'deadbeef'.repeat(5)
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {
         'Content-Type': 'image/png',
         'x-sanity-sha1': wrongSha1,
       })
       createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `verify-off-keying-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 1,
       retryDelayMs: 0,
@@ -413,15 +383,15 @@ describe('AssetHandler download paths', () => {
   })
 
   test('strictAssetVerification:false is a no-op when server omits hash headers', async () => {
-    const port = 43218
-    server = await getServer(port, (_req, res) => {
+    server = await getServer((_req, res) => {
       res.writeHead(200, 'OK', {'Content-Type': 'image/png'})
       createReadStream(joinPath(import.meta.dirname, 'fixtures', 'mead.png')).pipe(res)
     })
+    const {port} = server
 
     const tmpDir = joinPath(tmpBase, `verify-no-headers-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(port),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 1,
       retryDelayMs: 0,
@@ -451,7 +421,7 @@ describe('AssetHandler download paths', () => {
   test('adds Authorization header for image assets on cdn.sanity.io', () => {
     const tmpDir = joinPath(tmpBase, `auth-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(TEST_PORT),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 1,
     })
@@ -481,7 +451,7 @@ describe('AssetHandler download paths', () => {
   test('handles non-cdn URLs without auth header', () => {
     const tmpDir = joinPath(tmpBase, `noauth-${Date.now()}`)
     const handler = new AssetHandler({
-      client: getMockClient(TEST_PORT),
+      client: getMockClient(),
       tmpDir,
       maxRetries: 1,
     })

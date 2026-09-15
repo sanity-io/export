@@ -1,7 +1,8 @@
 import {describe, expect, test, beforeAll, afterAll} from 'vitest'
-import {mkdtempSync, writeFileSync, rmSync, mkdirSync} from 'node:fs'
+import {mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
+import {gzipSync} from 'node:zlib'
 import {create as createTar} from 'tar'
 
 import {detectCorruption, scanNdjsonFile, scanDirectory} from '../src/detectCorruption.js'
@@ -102,7 +103,7 @@ describe('detectCorruption', () => {
       // Create tar.gz with data.ndjson
       const contentDir = join(tempDir, 'clean-content')
       const contentPath = join(contentDir, 'data.ndjson')
-            mkdirSync(contentDir, {recursive: true})
+      mkdirSync(contentDir, {recursive: true})
       writeFileSync(contentPath, dataContent, 'utf8')
 
       await createTar(
@@ -130,7 +131,7 @@ describe('detectCorruption', () => {
       // Create tar.gz with corrupted data.ndjson
       const contentDir = join(tempDir, 'corrupt-content')
       const contentPath = join(contentDir, 'data.ndjson')
-            mkdirSync(contentDir, {recursive: true})
+      mkdirSync(contentDir, {recursive: true})
       writeFileSync(contentPath, dataContent, 'utf8')
 
       await createTar(
@@ -152,6 +153,49 @@ describe('detectCorruption', () => {
       expect(entries[0][0]).toContain('data.ndjson')
     })
 
+    test('rejects a truncated archive instead of reporting it as clean', async () => {
+      const goodPath = join(tempDir, 'truncatable.tar.gz')
+      const sourceDir = join(tempDir, 'truncatable-src')
+      mkdirSync(sourceDir, {recursive: true})
+      // Long enough that lopping off the tail leaves an unreadable gzip stream
+      writeFileSync(
+        join(sourceDir, 'data.ndjson'),
+        Array.from({length: 500}, (_, i) => `{"_id":"doc${i}","title":"padding padding"}`).join(
+          '\n',
+        ),
+        'utf8',
+      )
+      await createTar({gzip: true, cwd: sourceDir, file: goodPath}, ['data.ndjson'])
+
+      const truncatedPath = join(tempDir, 'truncated.tar.gz')
+      const full = readFileSync(goodPath)
+      writeFileSync(truncatedPath, full.subarray(0, Math.floor(full.length / 2)))
+
+      // Must surface the read failure - silently returning `corrupted: false` here would
+      // tell someone their damaged export is fine
+      await expect(detectCorruption(truncatedPath)).rejects.toThrow()
+    })
+
+    test('rejects a valid gzip wrapping a truncated tar', async () => {
+      const sourceDir = join(tempDir, 'shorttar-src')
+      mkdirSync(sourceDir, {recursive: true})
+      writeFileSync(
+        join(sourceDir, 'data.ndjson'),
+        Array.from({length: 500}, (_, i) => `{"_id":"doc${i}","title":"padding"}`).join('\n'),
+        'utf8',
+      )
+      const plainPath = join(tempDir, 'shorttar.tar')
+      await createTar({cwd: sourceDir, file: plainPath}, ['data.ndjson'])
+
+      // The gzip layer stays intact, so only the tar itself is damaged - the entry header
+      // still claims the original size while the body is cut short. Left unchecked this is
+      // the case that reports a broken export as clean.
+      const truncatedPath = join(tempDir, 'shorttar.tar.gz')
+      writeFileSync(truncatedPath, gzipSync(readFileSync(plainPath).subarray(0, 512 + 400)))
+
+      await expect(detectCorruption(truncatedPath)).rejects.toThrow(/truncated/i)
+    })
+
     test('detects file type by extension', async () => {
       const ndjsonPath = join(tempDir, 'test.ndjson')
       const tgzPath = join(tempDir, 'test.tgz')
@@ -166,7 +210,7 @@ describe('detectCorruption', () => {
       // Create a tgz file
       const contentDir = join(tempDir, 'tgz-content')
       const contentPath = join(contentDir, 'data.ndjson')
-            mkdirSync(contentDir, {recursive: true})
+      mkdirSync(contentDir, {recursive: true})
       writeFileSync(contentPath, '{"_id":"doc1"}\n', 'utf8')
 
       await createTar(
@@ -233,9 +277,7 @@ describe('detectCorruption', () => {
       const dir = join(tempDir, 'empty-dir')
       mkdirSync(dir, {recursive: true})
 
-      await expect(scanDirectory(dir)).rejects.toThrow(
-        /No data\.ndjson or assets\.json found/,
-      )
+      await expect(scanDirectory(dir)).rejects.toThrow(/No data\.ndjson or assets\.json found/)
     })
 
     test('detectCorruption handles directory input', async () => {

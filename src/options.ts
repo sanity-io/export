@@ -65,7 +65,7 @@ export function validateOptions(opts: ExportOptions): NormalizedExportOptions {
   }
 
   if (
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // oxlint-disable-next-line typescript/no-unnecessary-condition
     !options.client ||
     !('config' in options.client) ||
     typeof options.client.getUrl !== 'function'
