@@ -59,7 +59,7 @@
     "p-queue": "^9.0.1"
   },
   "devDependencies": {
-    "@sanity/client": "^7.27.0",
+    "@sanity/client": "^8.6.1",
     "@sanity/semantic-release-preset": "^6.0.0",
     "@types/node": "^22.20.2",
     "@vitest/coverage-v8": "^4.1.11",
