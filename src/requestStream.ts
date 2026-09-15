@@ -19,8 +19,6 @@ interface ErrorWithResponse extends Error {
   }
 }
 
-const CONNECTION_TIMEOUT = 15 * 1000 // 15 seconds
-
 // Note the lack of a `retry()` middleware: retrying is the caller's business here, since
 // how many attempts to make (and how long to wait between them) differs between the
 // document stream and the asset downloads. See `maxRetries` / `retryDelayMs` below.
@@ -29,10 +27,6 @@ const request = createRequester({
   // Non-2xx responses are handed back to the caller instead of throwing, so that the
   // status code and the response body can be inspected (and retried) by the caller.
   httpErrors: false,
-  // A total deadline would abort long-running exports part-way through the download,
-  // so only the time to receive the response headers is bounded here. Inactivity while
-  // the body is streaming is enforced by `readTimeout`, see `toResponseStream()`.
-  timeout: {headers: CONNECTION_TIMEOUT, total: false},
 })
 
 let fetchOverride: FetchFunction | undefined
@@ -65,6 +59,9 @@ export async function requestStream(options: RequestStreamOptions): Promise<Resp
     try {
       const response = await request({
         url: options.url,
+        // Waiting for headers includes server processing time, so use the read timeout
+        // rather than a connection timeout. A total deadline would cut off long exports.
+        timeout: {headers: readTimeout, total: false},
         ...(options.headers ? {headers: options.headers} : {}),
         ...(fetchOverride ? {fetch: fetchOverride} : {}),
         // `fetch()` cannot cap the number of redirects it follows, so - as with the

@@ -1,5 +1,5 @@
 import {createMockFetch, streamBody, streamDelay, streamStall, type MockFetch} from 'get-it/mock'
-import {afterEach, beforeEach, describe, expect, test} from 'vitest'
+import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
 
 import {requestStream, setFetchImplementation} from '../src/requestStream.js'
 import type {ResponseStream} from '../src/types.js'
@@ -22,6 +22,48 @@ describe('requestStream', () => {
 
   afterEach(() => {
     setFetchImplementation(undefined)
+    vi.useRealTimers()
+  })
+
+  test.each([undefined, 30_000, 0])(
+    'allows headers after 15 seconds with readTimeout=%s',
+    async (readTimeout) => {
+      vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']})
+      mock.on('GET', 'https://example.test/delayed-headers').respond({
+        status: 200,
+        body: 'hello',
+        delay: 16_000,
+      })
+
+      const result = requestStream({
+        url: 'https://example.test/delayed-headers',
+        maxRetries: 0,
+        ...(readTimeout !== undefined ? {readTimeout} : {}),
+      }).then(readAll)
+      const assertion = expect(result).resolves.toBe('hello')
+
+      await Promise.all([assertion, vi.advanceTimersByTimeAsync(16_000)])
+    },
+  )
+
+  test('uses readTimeout while waiting for response headers', async () => {
+    vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']})
+    mock.on('GET', 'https://example.test/delayed-headers').respond({
+      status: 200,
+      body: 'hello',
+      delay: 2_000,
+    })
+
+    const result = requestStream({
+      url: 'https://example.test/delayed-headers',
+      maxRetries: 0,
+      readTimeout: 1_000,
+    }).then(readAll)
+    const assertion = expect(result).rejects.toThrow(
+      'Request timed out after 1000ms waiting for response headers',
+    )
+
+    await Promise.all([assertion, vi.advanceTimersByTimeAsync(2_000)])
   })
 
   test('exposes the status code and response headers alongside the body', async () => {
