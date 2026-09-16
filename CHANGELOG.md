@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [7.0.3](https://github.com/sanity-io/export/compare/v7.0.2...v7.0.3) (2026-09-16)
+
+### Bug Fixes
+
+- **deps:** drop `json-stream-stringify` dependency ([#63](https://github.com/sanity-io/export/issues/63)) ([91542f3](https://github.com/sanity-io/export/commit/91542f32feea47839fef89938c6fc2d084622e2a))
+
 ## [7.0.2](https://github.com/sanity-io/export/compare/v7.0.1...v7.0.2) (2026-09-15)
 
 ### Bug Fixes
