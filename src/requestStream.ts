@@ -1,8 +1,8 @@
 import {Readable} from 'node:stream'
+import {setTimeout as delay} from 'node:timers/promises'
 
 import {createRequester, type FetchFunction, type StreamResponse} from 'get-it'
 
-import {delay} from './util/delay.js'
 import {extractFirstError} from './util/extractFirstError.js'
 import {tryThrowFriendlyError} from './util/friendlyError.js'
 import {
@@ -57,8 +57,10 @@ export async function requestStream(options: RequestStreamOptions): Promise<Resp
     i++
 
     try {
+      options.signal?.throwIfAborted()
       const response = await request({
         url: options.url,
+        ...(options.signal && {signal: options.signal}),
         // Waiting for headers includes server processing time, so use the read timeout
         // rather than a connection timeout. A total deadline would cut off long exports.
         timeout: {headers: readTimeout, total: false},
@@ -71,6 +73,7 @@ export async function requestStream(options: RequestStreamOptions): Promise<Resp
 
       return toResponseStream(response, readTimeout)
     } catch (err) {
+      options.signal?.throwIfAborted()
       const firstError = extractFirstError(err)
       error = firstError instanceof Error ? firstError : toError(err)
 
@@ -84,7 +87,7 @@ export async function requestStream(options: RequestStreamOptions): Promise<Resp
 
       if (i < maxRetries) {
         debug('Error, retrying after %d ms: %s', retryDelayMs, error.message)
-        await delay(retryDelayMs)
+        await delay(retryDelayMs, undefined, {signal: options.signal})
       }
     }
   } while (i < maxRetries)

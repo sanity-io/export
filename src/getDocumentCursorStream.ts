@@ -1,83 +1,49 @@
-import {Transform, type TransformCallback} from 'node:stream'
+import {Readable} from 'node:stream'
 
-import {debug} from './debug.js'
 import {getUserAgent} from './getUserAgent.js'
 import {requestStream} from './requestStream.js'
 import type {NormalizedExportOptions, ResponseStream} from './types.js'
 import {getSource} from './options.js'
 
-// same regex as split2 is using by default: https://github.com/mcollina/split2/blob/53432f54bd5bf422bd55d91d38f898b6c9496fc1/index.js#L86
-const splitRegex = /\r?\n/
-
-interface CursorChunk {
-  nextCursor?: string
-  _id?: string
+export async function getDocumentCursorStream(options: NormalizedExportOptions): Promise<Readable> {
+  return Readable.from(readPages(options))
 }
 
-export async function getDocumentCursorStream(
-  options: NormalizedExportOptions,
-): Promise<Transform> {
-  let streamsInflight = 0
-  function decrementInflight(stream: Transform): void {
-    streamsInflight--
-    if (streamsInflight === 0) {
-      stream.end()
+async function* readPages(options: NormalizedExportOptions) {
+  let cursor = ''
+  const seenCursors = new Set<string>()
+  do {
+    const response = await startStream(options, cursor)
+    let pending = ''
+    let nextCursor = ''
+    const readCursor = (line: string) => {
+      try {
+        const value = JSON.parse(line) as {_id?: string; nextCursor?: string}
+        if (value && !value._id && typeof value.nextCursor === 'string')
+          nextCursor = value.nextCursor
+      } catch {
+        // Document parsing and API errors are handled by the export pipeline.
+      }
     }
-  }
-
-  const stream = new Transform({
-    transform(
-      this: Transform,
-      chunk: Buffer,
-      encoding: BufferEncoding,
-      callback: TransformCallback,
-    ) {
-      if (encoding !== ('buffer' as BufferEncoding) && encoding !== ('string' as BufferEncoding)) {
-        callback(null, chunk)
-        return
-      }
-      this.push(chunk, encoding)
-
-      let parsedChunk: CursorChunk | null = null
-      for (const chunkStr of chunk.toString().split(splitRegex)) {
-        if (chunkStr.trim() === '') {
-          continue
-        }
-
-        try {
-          parsedChunk = JSON.parse(chunkStr) as CursorChunk
-        } catch {
-          // Ignore JSON parse errors
-          // this can happen if the chunk is not a JSON object. We just pass it through and let the caller handle it.
-          debug('Failed to parse JSON chunk, ignoring', chunkStr)
-        }
-
-        if (
-          parsedChunk !== null &&
-          typeof parsedChunk === 'object' &&
-          'nextCursor' in parsedChunk &&
-          typeof parsedChunk.nextCursor === 'string' &&
-          !('_id' in parsedChunk)
-        ) {
-          debug('Got next cursor "%s", fetching next stream', parsedChunk.nextCursor)
-          streamsInflight++
-
-          void startStream(options, parsedChunk.nextCursor).then((reqStream) => {
-            reqStream.on('end', () => decrementInflight(this))
-            reqStream.pipe(this, {end: false})
-          })
-        }
-      }
-
-      callback()
-    },
-  })
-
-  streamsInflight++
-  const reqStream = await startStream(options, '')
-  reqStream.on('end', () => decrementInflight(stream))
-  reqStream.pipe(stream, {end: false})
-  return stream
+    for await (const chunk of response) {
+      pending += String(chunk)
+      const lines = pending.split(/\r?\n/)
+      pending = lines.pop() ?? ''
+      for (const line of lines) readCursor(line)
+      yield chunk
+    }
+    if (pending) {
+      readCursor(pending)
+      yield Buffer.from('\n')
+    }
+    if (nextCursor && seenCursors.has(nextCursor)) {
+      throw new Error(
+        'Export returned a repeated page cursor. Retry the export or use stream mode.',
+      )
+    }
+    seenCursors.add(nextCursor)
+    cursor = nextCursor
+  } while (cursor)
 }
 
 function startStream(
@@ -90,30 +56,16 @@ function startStream(
       ? `/data/export/${source.id}`
       : `/media-libraries/${source.id}/export`,
   )
-
   const url = new URL(baseUrl)
   url.searchParams.set('nextCursor', nextCursor)
-
-  if (options.types && options.types.length > 0) {
-    url.searchParams.set('types', options.types.join())
-  }
+  if (options.types?.length) url.searchParams.set('types', options.types.join())
   const token = options.client.config().token
-  const headers: Record<string, string> = {
-    'User-Agent': getUserAgent(),
-    ...(token ? {Authorization: `Bearer ${token}`} : {}),
-  }
-
-  debug('Starting stream with cursor "%s"', nextCursor)
-
   return requestStream({
     url: url.toString(),
-    headers,
+    headers: {'User-Agent': getUserAgent(), ...(token && {Authorization: `Bearer ${token}`})},
     maxRetries: options.maxRetries,
-    ...(options.retryDelayMs !== undefined ? {retryDelayMs: options.retryDelayMs} : {}),
+    ...(options.signal && {signal: options.signal}),
+    ...(options.retryDelayMs !== undefined && {retryDelayMs: options.retryDelayMs}),
     readTimeout: options.readTimeout,
-  }).then((res) => {
-    debug('Got stream with HTTP %d', res.statusCode)
-
-    return res
   })
 }
