@@ -2,6 +2,7 @@ import {createReadStream, createWriteStream} from 'node:fs'
 import {mkdir, readdir, readFile, rm, stat} from 'node:fs/promises'
 import os from 'node:os'
 import {join as joinPath} from 'node:path'
+import {Writable} from 'node:stream'
 
 import {x as extract} from 'tar'
 import {afterAll, afterEach, describe, expect, test, vitest} from 'vitest'
@@ -979,6 +980,36 @@ describe('export', () => {
     expect(parsed).toEqual(documents)
 
     await rm(cwd, {recursive: true})
+  })
+
+  test('rejects with the destination error while documents are still streaming', async () => {
+    const destinationError = new Error('Output disconnected during document streaming')
+    const output = new Writable({
+      write(_chunk, _encoding, callback) {
+        callback()
+      },
+    })
+    // Keep an unhandled destination error from crashing the test worker. The exporter
+    // must still reject its own promise with this error instead of continuing to archive.
+    output.on('error', () => {})
+
+    server = await getServer((_req, res) => {
+      output.once('close', () => res.end())
+      res.write(`${JSON.stringify({_id: 'stream-doc', _type: 'article'})}\n`)
+    })
+    const options = await getOptions({port: server.port})
+
+    await expect(
+      exportDataset({
+        ...options,
+        outputPath: output,
+        raw: true,
+        transformDocument: (doc) => {
+          output.destroy(destinationError)
+          return doc
+        },
+      }),
+    ).rejects.toBe(destinationError)
   })
 
   test('supports writable stream as outputPath', async () => {
