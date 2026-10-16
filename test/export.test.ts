@@ -982,35 +982,53 @@ describe('export', () => {
     await rm(cwd, {recursive: true})
   })
 
-  test('rejects with the destination error while documents are still streaming', async () => {
-    const destinationError = new Error('Output disconnected during document streaming')
-    const output = new Writable({
-      write(_chunk, _encoding, callback) {
-        callback()
-      },
-    })
-    // Keep an unhandled destination error from crashing the test worker. The exporter
-    // must still reject its own promise with this error instead of continuing to archive.
-    output.on('error', () => {})
-
-    server = await getServer((_req, res) => {
-      output.once('close', () => res.end())
-      res.write(`${JSON.stringify({_id: 'stream-doc', _type: 'article'})}\n`)
-    })
-    const options = await getOptions({port: server.port})
-
-    await expect(
-      exportDataset({
-        ...options,
-        outputPath: output,
-        raw: true,
-        transformDocument: (doc) => {
-          output.destroy(destinationError)
-          return doc
+  test.each([true, false])(
+    'rejects with the destination error while documents are still streaming (raw: %s)',
+    async (raw) => {
+      const destinationError = new Error('Output disconnected during document streaming')
+      const output = new Writable({
+        write(_chunk, _encoding, callback) {
+          callback()
         },
-      }),
-    ).rejects.toBe(destinationError)
-  })
+      })
+      // Keep an unhandled destination error from crashing the test worker. The exporter
+      // must still reject its own promise with this error instead of continuing to archive.
+      output.on('error', () => {})
+
+      server = await getServer((req, res) => {
+        if (req.url === '/asset') {
+          // Fail before headers arrive to exercise cancellation of an active asset request.
+          output.destroy(destinationError)
+          return
+        }
+        output.once('close', () => res.end())
+        if (!raw) {
+          res.write(
+            `${JSON.stringify({
+              _id: 'image-eca53d85ec83704801ead6c8be368fd377f8aaef-512x512-png',
+              _type: 'sanity.imageAsset',
+              url: `http://${req.headers.host}/asset`,
+            })}\n`,
+          )
+        }
+        res.write(`${JSON.stringify({_id: 'stream-doc', _type: 'article'})}\n`)
+      })
+      const options = await getOptions({port: server.port})
+
+      await expect(
+        exportDataset({
+          ...options,
+          outputPath: output,
+          raw,
+          transformDocument: (doc) => {
+            if (raw) output.destroy(destinationError)
+            return doc
+          },
+        }),
+      ).rejects.toBe(destinationError)
+      expect(destinationError.message).toBe('Output disconnected during document streaming')
+    },
+  )
 
   test('supports writable stream as outputPath', async () => {
     const doc = {

@@ -328,6 +328,7 @@ export class AssetHandler {
         ...(this.readTimeout !== undefined && {readTimeout: this.readTimeout}),
       })
     } catch (err) {
+      if (this.abortController.signal.aborted) throw err
       const message = 'Failed to create asset stream'
       if (err instanceof Error) {
         err.message = `${message}: ${err.message}`
@@ -346,6 +347,7 @@ export class AssetHandler {
           errMsg = `${errMsg}: ${err}`
         }
       } catch (err) {
+        if (this.abortController.signal.aborted) throw err
         const message = 'Failed to parse error response from asset stream'
         if (err instanceof Error) {
           err.message = `${message}: ${err.message}`
@@ -375,6 +377,7 @@ export class AssetHandler {
       md5 = res.md5
       size = res.size
     } catch (err) {
+      if (this.abortController.signal.aborted) throw err
       const message = 'Failed to write asset stream to filesystem'
 
       if (err instanceof Error) {

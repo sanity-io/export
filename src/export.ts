@@ -70,6 +70,9 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
     strictAssetVerification: options.strictAssetVerification,
     onError: (error) => abortController.abort(error),
   })
+  const destination = isWritableStream(options.outputPath) ? options.outputPath : undefined
+  const onDestinationError = (error: Error) => assetHandler.fail(error)
+  destination?.on('error', onDestinationError)
   let outputTemporaryPath: string | undefined
   let progressInterval: ReturnType<typeof setInterval> | undefined
   let documentCount = 0
@@ -197,12 +200,16 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult> 
     }
     throw assetHandler.rejectedError ?? error
   } finally {
-    clearInterval(progressInterval)
-    // Downloads must stop before their temporary files are removed.
-    await assetHandler.queue.onIdle()
-    onProgress({step: 'Clearing temporary files...'})
-    await rm(tmpDir, {recursive: true, force: true}).catch(noop)
-    if (outputTemporaryPath) await rm(outputTemporaryPath, {force: true}).catch(noop)
+    try {
+      clearInterval(progressInterval)
+      // Downloads must stop before their temporary files are removed.
+      await assetHandler.queue.onIdle()
+      onProgress({step: 'Clearing temporary files...'})
+      await rm(tmpDir, {recursive: true, force: true}).catch(noop)
+      if (outputTemporaryPath) await rm(outputTemporaryPath, {force: true}).catch(noop)
+    } finally {
+      destination?.off('error', onDestinationError)
+    }
   }
 }
 
