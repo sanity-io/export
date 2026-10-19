@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [7.0.4](https://github.com/sanity-io/export/compare/v7.0.3...v7.0.4) (2026-10-19)
+
+### Bug Fixes
+
+- include referenced assets in typed exports ([#68](https://github.com/sanity-io/export/issues/68)) ([2401f0f](https://github.com/sanity-io/export/commit/2401f0fdac230ed3f1d240166d545352c8d67557))
+
 ## [7.0.3](https://github.com/sanity-io/export/compare/v7.0.2...v7.0.3) (2026-09-16)
 
 ### Bug Fixes
