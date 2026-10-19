@@ -1,17 +1,18 @@
 import {createWriteStream} from 'node:fs'
-import {mkdir, rm} from 'node:fs/promises'
+import {mkdir, mkdtemp, rename, rm} from 'node:fs/promises'
+import {randomUUID} from 'node:crypto'
 import {tmpdir} from 'node:os'
 import {join as joinPath} from 'node:path'
-import {PassThrough, type Writable} from 'node:stream'
-import {finished, pipeline} from 'node:stream/promises'
+import type {Writable} from 'node:stream'
+import {pipeline} from 'node:stream/promises'
 import {deprecate} from 'node:util'
 import {constants as zlib, createGzip} from 'node:zlib'
 
 import {isWritableStream, split, throughObj} from './util/streamHelpers.js'
 import {createTarArchive} from './util/tarArchive.js'
 import {AssetHandler} from './AssetHandler.js'
-import {DOCUMENT_STREAM_DEBUG_INTERVAL, MODE_STREAM} from './constants.js'
-import {debug} from './debug.js'
+import {MODE_STREAM} from './constants.js'
+import {downloadReferencedAssets} from './downloadReferencedAssets.js'
 import {filterDocuments} from './filterDocuments.js'
 import {filterDocumentTypes} from './filterDocumentTypes.js'
 import {getDocumentCursorStream} from './getDocumentCursorStream.js'
@@ -49,284 +50,167 @@ export async function exportDataset(opts: ExportOptions): Promise<ExportResult>
 export async function exportDataset(opts: ExportOptions): Promise<ExportResult> {
   const options = validateOptions(opts)
   const onProgress = options.onProgress ?? noop
-
-  const slugDate = new Date()
+  const source = getSource(opts)
+  const prefix = `${source.id}-export-${new Date()
     .toISOString()
     .replace(/[^a-z0-9]/gi, '-')
-    .toLowerCase()
-
-  const source = getSource(opts)
-  const prefix = `${source.id}-export-${slugDate}`
-  const tmpDir = joinPath(tmpdir(), prefix)
-  await mkdir(tmpDir, {recursive: true})
-  // Pre-create asset directories so archiving doesn't throw if no assets are downloaded
-  await mkdir(joinPath(tmpDir, 'files'), {recursive: true})
-  await mkdir(joinPath(tmpDir, 'images'), {recursive: true})
-
-  const archive = createTarArchive()
-
+    .toLowerCase()}`
+  const tmpDir = await mkdtemp(joinPath(tmpdir(), `${prefix}-`))
   const dataPath = joinPath(tmpDir, 'data.ndjson')
   const assetsPath = joinPath(tmpDir, 'assets.json')
-
-  const cleanup = () =>
-    rm(tmpDir, {recursive: true, force: true}).catch((err: unknown) => {
-      debug(`Error while cleaning up temporary files: ${err instanceof Error ? err.message : err}`)
-      return false
-    })
-
+  const abortController = new AbortController()
+  options.signal = abortController.signal
   const assetHandler = new AssetHandler({
     client: options.client,
     tmpDir,
-    prefix,
     ...(options.assetConcurrency !== undefined && {concurrency: options.assetConcurrency}),
     ...(options.retryDelayMs !== undefined && {retryDelayMs: options.retryDelayMs}),
     maxRetries: options.maxAssetRetries,
+    readTimeout: options.readTimeout,
     strictAssetVerification: options.strictAssetVerification,
+    onError: (error) => abortController.abort(error),
   })
-
-  debug('Downloading assets (temporarily) to %s', tmpDir)
-  debug('Downloading to %s', isWritableStream(options.outputPath) ? 'stream' : options.outputPath)
-
-  const outputStream: Writable = isWritableStream(options.outputPath)
-    ? options.outputPath
-    : createWriteStream(options.outputPath)
-
-  let assetStreamHandler = assetHandler.noop
-  if (!options.raw) {
-    assetStreamHandler = options.assets ? assetHandler.rewriteAssets : assetHandler.stripAssets
-  }
-
-  let resolve: (value: ExportResult) => void
-  let reject: (reason: Error) => void
-  const result = new Promise<ExportResult>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-
-  finished(archive.stream)
-    .then(() => {
-      debug('Archive finished')
-    })
-    .catch(async (archiveErr: unknown) => {
-      const err = archiveErr instanceof Error ? archiveErr : new Error(`${archiveErr}`)
-      debug('Archiving errored: %s', err.stack)
-      // Try cleanup, but let original error be the main rejection reason, not the cleanup
-      await cleanup().catch(noop)
-      reject(err)
-    })
-
-  debug('Getting dataset export stream, mode: "%s"', options.mode)
-  onProgress({step: 'Exporting documents...'})
-
+  const destination = isWritableStream(options.outputPath) ? options.outputPath : undefined
+  const onDestinationError = (error: Error) => assetHandler.fail(error)
+  destination?.on('error', onDestinationError)
+  let outputTemporaryPath: string | undefined
+  let progressInterval: ReturnType<typeof setInterval> | undefined
   let documentCount = 0
-  let lastDocumentID: string | null = null
-  let lastReported = Date.now()
-  const reportDocumentCount = (
-    doc: SanityDocument,
-    _enc: BufferEncoding,
-    cb: (err: Error | null, doc: SanityDocument) => void,
-  ): void => {
-    ++documentCount
+  let lastReported = 0
 
-    const now = Date.now()
-    // We report to the `onProgress` handler every 50 ms.
-    // It's up to the caller to not do too much expensive work.
-    if (now - lastReported > 50) {
-      onProgress({
-        step: 'Exporting documents...',
-        current: documentCount,
-        total: '?',
-        update: true,
-      })
-
-      lastReported = now
+  try {
+    await mkdir(joinPath(tmpDir, 'files'))
+    await mkdir(joinPath(tmpDir, 'images'))
+    let assetStreamHandler = assetHandler.noop
+    if (!options.raw) {
+      assetStreamHandler = options.assets ? assetHandler.rewriteAssets : assetHandler.stripAssets
     }
-
-    lastDocumentID = doc._id
-
-    cb(null, doc)
-  }
-
-  const inputStream = await getDocumentInputStream(options)
-  if ('statusCode' in inputStream) {
-    debug('Got HTTP %d', inputStream.statusCode)
-  }
-  if ('headers' in inputStream) {
-    debug('Response headers: %o', Object.fromEntries(inputStream.headers ?? []))
-  }
-
-  let debugTimer: ReturnType<typeof setTimeout> | null = null
-  function scheduleDebugTimer(): void {
-    debugTimer = setTimeout(() => {
-      debug('Still streaming documents', {
-        documentCount,
-        lastDocumentID,
-      })
-
-      // Schedule another tick:
-      scheduleDebugTimer()
-    }, DOCUMENT_STREAM_DEBUG_INTERVAL)
-  }
-
-  scheduleDebugTimer()
-
-  const filterTransform = throughObj((doc: SanityDocument, _enc: BufferEncoding, callback) => {
-    try {
-      const include = options.filterDocument(doc)
-      if (include) {
-        callback(null, doc)
-      } else {
-        callback()
-      }
-    } catch (err) {
-      callback(err instanceof Error ? err : new Error(`${err}`))
-    }
-  })
-
-  const transformTransform = throughObj((doc: SanityDocument, _enc: BufferEncoding, callback) => {
-    try {
-      callback(null, options.transformDocument(doc))
-    } catch (err) {
-      callback(err instanceof Error ? err : new Error(`${err}`))
-    }
-  })
-
-  const reportTransform = throughObj(reportDocumentCount)
-
-  // Use pipeline to chain streams with proper error handling
-  const jsonStream = new PassThrough()
-  finished(jsonStream)
-    .then(() => debug('JSON stream finished'))
-    .catch((err: unknown) => reject(err instanceof Error ? err : new Error(`${err}`)))
-
-  pipeline(
-    inputStream,
-    logFirstChunk(),
-    split(tryParseJson),
-    rejectOnApiError(),
-    filterDocuments(options.drafts),
-    filterDocumentTypes(options.types),
-    assetStreamHandler,
-    filterTransform,
-    transformTransform,
-    reportTransform,
-    stringifyStream(),
-    jsonStream,
-  ).catch((err: unknown) => {
-    if (debugTimer !== null) clearTimeout(debugTimer)
-    debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
-    reject(err instanceof Error ? err : new Error(`${err}`))
-  })
-
-  pipeline(jsonStream, createWriteStream(dataPath))
-    .then(async () => {
-      if (debugTimer !== null) clearTimeout(debugTimer)
-
-      debug('Export stream completed')
-      onProgress({
-        step: 'Exporting documents...',
-        current: documentCount,
-        total: documentCount,
-        update: true,
-      })
-
-      debug('Adding data.ndjson to archive')
-      await archive.addFile(dataPath, `${prefix}/data.ndjson`)
-
-      if (!options.raw && options.assets) {
-        onProgress({step: 'Downloading assets...'})
-      }
-
-      let prevCompleted = 0
-      const progressInterval = setInterval(() => {
-        const completed =
-          assetHandler.queueSize - assetHandler.queue.size - assetHandler.queue.pending
-
-        if (prevCompleted === completed) {
-          return
-        }
-
-        prevCompleted = completed
-        onProgress({
-          step: 'Downloading assets...',
-          current: completed,
-          total: assetHandler.queueSize,
-          update: true,
-        })
-      }, 500)
-
-      debug('Waiting for asset handler to complete downloads')
+    const filterTransform = throughObj((doc: SanityDocument, _enc, callback) => {
       try {
-        const assetMap = await assetHandler.finish()
-
-        // Make sure we mark the progress as done (eg 100/100 instead of 99/100)
+        callback(null, options.filterDocument(doc) ? doc : undefined)
+      } catch (error) {
+        callback(error instanceof Error ? error : new Error(String(error)))
+      }
+    })
+    const transformTransform = throughObj((doc: SanityDocument, _enc, callback) => {
+      try {
+        callback(null, options.transformDocument(doc))
+      } catch (error) {
+        callback(error instanceof Error ? error : new Error(String(error)))
+      }
+    })
+    const reportTransform = throughObj((doc: SanityDocument, _enc, callback) => {
+      if (!options.raw && options.assets) assetHandler.trackDocumentAssets(doc, doc._id)
+      documentCount++
+      if (Date.now() - lastReported > 50) {
         onProgress({
-          step: 'Downloading assets...',
-          current: assetHandler.queueSize,
-          total: assetHandler.queueSize,
+          step: 'Exporting documents...',
+          current: documentCount,
+          total: '?',
           update: true,
         })
-
-        const assetsStream = createWriteStream(assetsPath)
-        await pipeline(stringifyAssetMap(assetMap), assetsStream)
-
-        if (options.assetsMap) {
-          await archive.addFile(assetsPath, `${prefix}/assets.json`)
-        }
-
-        clearInterval(progressInterval)
-      } catch (assetErr) {
-        clearInterval(progressInterval)
-        archive.abort(assetErr)
-        await cleanup().catch(noop) // Try to clean up, but ignore errors here
-        reject(assetErr instanceof Error ? assetErr : new Error(`${assetErr}`))
-        return
+        lastReported = Date.now()
       }
+      callback(null, doc)
+    })
+    onProgress({step: 'Exporting documents...'})
+    const inputStream = await getDocumentInputStream(options)
+    await pipeline(
+      inputStream,
+      logFirstChunk(),
+      split(tryParseJson),
+      rejectOnApiError(),
+      filterDocuments(options.drafts),
+      filterDocumentTypes(options.types),
+      assetStreamHandler,
+      filterTransform,
+      transformTransform,
+      reportTransform,
+      stringifyStream(),
+      createWriteStream(dataPath),
+      {signal: abortController.signal},
+    )
+    onProgress({
+      step: 'Exporting documents...',
+      current: documentCount,
+      total: documentCount,
+      update: true,
+    })
+    if (!options.raw && options.assets) {
+      onProgress({step: 'Downloading assets...'})
+      progressInterval = setInterval(
+        () =>
+          onProgress({
+            step: 'Downloading assets...',
+            current: assetHandler.queueSize - assetHandler.queue.size - assetHandler.queue.pending,
+            total: assetHandler.queueSize,
+            update: true,
+          }),
+        500,
+      )
+      await downloadReferencedAssets(assetHandler, options)
+    }
+    const assetMap = await assetHandler.finish()
+    clearInterval(progressInterval)
+    onProgress({
+      step: 'Downloading assets...',
+      current: assetHandler.queueSize,
+      total: assetHandler.queueSize,
+      update: true,
+    })
+    await pipeline(stringifyAssetMap(assetMap), createWriteStream(assetsPath))
 
-      // Add all downloaded assets to archive
+    const archive = createTarArchive()
+    let output: Writable
+    if (isWritableStream(options.outputPath)) {
+      output = options.outputPath
+    } else {
+      outputTemporaryPath = `${options.outputPath}.${randomUUID()}.partial`
+      output = createWriteStream(outputTemporaryPath, {flags: 'wx'})
+    }
+    const gzip = createGzip({
+      level: options.compress ? zlib.Z_DEFAULT_COMPRESSION : zlib.Z_NO_COMPRESSION,
+    })
+    const writing = pipeline(archive.stream, gzip, output)
+    // Register rejection handling before adding entries, which can themselves fail.
+    void writing.catch(() => {})
+    try {
       onProgress({step: 'Adding assets to archive...'})
+      await archive.addFile(dataPath, `${prefix}/data.ndjson`)
+      if (options.assetsMap) await archive.addFile(assetsPath, `${prefix}/assets.json`)
       await archive.addDirectory(joinPath(tmpDir, 'files'), `${prefix}/files`)
       await archive.addDirectory(joinPath(tmpDir, 'images'), `${prefix}/images`)
-
-      debug('Finalizing archive, flushing streams')
       archive.finalize()
-    })
-    .catch(async (err: unknown) => {
-      if (debugTimer !== null) clearTimeout(debugTimer)
-      debug(`Export stream error @ ${lastDocumentID}/${documentCount}: `, err)
-      archive.abort(err)
-      await cleanup().catch(noop)
-      reject(err instanceof Error ? err : new Error(`${err}`))
-    })
-
-  const gzip = createGzip({
-    level: options.compress ? zlib.Z_DEFAULT_COMPRESSION : zlib.Z_NO_COMPRESSION,
-  })
-
-  pipeline(archive.stream, gzip, outputStream)
-    .then(() => onComplete())
-    .catch(onComplete)
-
-  async function onComplete(err?: Error): Promise<void> {
-    onProgress({step: 'Clearing temporary files...'})
-    await cleanup()
-
-    if (!err) {
-      debug('Export completed')
-      resolve({
-        outputPath: options.outputPath,
-        documentCount,
-        assetCount: assetHandler.filesWritten,
-      })
-      return
+      await writing
+    } catch (error) {
+      archive.abort(error)
+      await writing.catch(noop)
+      throw error
     }
-
-    debug('Error during streaming: %s', err.stack)
+    if (outputTemporaryPath && typeof options.outputPath === 'string') {
+      await rename(outputTemporaryPath, options.outputPath)
+      outputTemporaryPath = undefined
+    }
+    return {outputPath: options.outputPath, documentCount, assetCount: assetHandler.filesWritten}
+  } catch (error) {
+    abortController.abort(error)
     assetHandler.clear()
-    reject(err)
+    if (isWritableStream(options.outputPath)) {
+      options.outputPath.destroy()
+    }
+    throw assetHandler.rejectedError ?? error
+  } finally {
+    try {
+      clearInterval(progressInterval)
+      // Downloads must stop before their temporary files are removed.
+      await assetHandler.queue.onIdle()
+      onProgress({step: 'Clearing temporary files...'})
+      await rm(tmpDir, {recursive: true, force: true}).catch(noop)
+      if (outputTemporaryPath) await rm(outputTemporaryPath, {force: true}).catch(noop)
+    } finally {
+      destination?.off('error', onDestinationError)
+    }
   }
-
-  return result
 }
 
 function getDocumentInputStream(options: NormalizedExportOptions): Promise<ResponseStream> {

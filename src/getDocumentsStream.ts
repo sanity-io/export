@@ -33,6 +33,7 @@ export function getDocumentsStream(options: GetDocumentStreamOptions): Promise<R
 
   return requestStream({
     url: url.toString(),
+    ...(options.signal && {signal: options.signal}),
     headers,
     maxRetries: options.maxRetries,
     ...(options.retryDelayMs !== undefined ? {retryDelayMs: options.retryDelayMs} : {}),

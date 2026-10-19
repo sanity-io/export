@@ -168,4 +168,25 @@ describe('requestStream', () => {
       requestStream({url: 'https://example.test/down', maxRetries: 1, retryDelayMs: 0}),
     ).rejects.toThrow('connect ECONNREFUSED 127.0.0.1:443')
   })
+
+  test('aborts during retry backoff without making another request', async () => {
+    const controller = new AbortController()
+    const reason = new Error('Export stopped')
+    const fetch = vi.fn(mock.fetch)
+    setFetchImplementation(fetch)
+    mock.on('GET', 'https://example.test/retry').respondWithError(() => {
+      setImmediate(() => controller.abort(reason))
+      return new Error('Connection reset')
+    })
+
+    await expect(
+      requestStream({
+        url: 'https://example.test/retry',
+        maxRetries: 2,
+        retryDelayMs: 30_000,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({name: 'AbortError', cause: reason})
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 })

@@ -39,6 +39,8 @@ exportDataset({
 
   // Export only given document types (`_type`)
   // Optional, default: all types
+  // Includes images/files referenced by these documents. Explicitly include
+  // 'sanity.imageAsset' or 'sanity.fileAsset' to include unused assets too.
   types: ['products', 'shops'],
 
   // Run 12 concurrent asset downloads
@@ -93,3 +95,25 @@ This functionality is built in to the `@sanity/cli` package as `sanity dataset e
 ## License
 
 MIT-licensed. See LICENSE.
+
+### Assets in typed exports
+
+With assets enabled, `types: ['blogPost']` includes the posts and their referenced images
+and files, including nested fields and asset metadata. Shared assets download once.
+References to other document types, such as authors or categories, are not followed.
+Include those types when the destination needs those documents too.
+
+Use `raw: true` to preserve original references without downloading assets when importing
+back into a dataset that already has them. `assets: false` removes image/file fields.
+Explicit asset types include all assets of those types, including unused assets.
+
+Missing asset documents, missing download URLs, and HTTP 401, 403, or 404 responses are
+skipped. This preserves the existing behavior for unavailable files, but the resulting
+export may be incomplete. Other download failures still fail the export after any retries.
+File outputs replace the destination after the archive is complete; a failed export
+preserves an existing destination. Writable-stream consumers must discard output when
+the export promise rejects.
+
+Asset documents retrieved separately are read after the selected documents and may have
+changed since the export started. This does not repair previously broken archives or
+make imports transactional.

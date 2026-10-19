@@ -95,6 +95,11 @@ export type ExportOptions = {
   /**
    * An array of document type names to include in the export. If not specified, all types
    * will be included.
+   * Referenced images and files are included unless `raw` is true or `assets` is false.
+   * Explicitly including `sanity.imageAsset` or `sanity.fileAsset` also includes
+   * unreferenced assets of that type. Missing assets and downloads returning HTTP
+   * 401, 403, or 404 are skipped, so an export may be incomplete.
+   * Referenced asset documents fetched separately may have changed since the export started.
    */
   types?: string[] | undefined
 
@@ -224,6 +229,7 @@ export interface ExportResult<T = string | Writable> {
  * @internal
  */
 export type NormalizedExportOptions = ExportOptions & {
+  signal?: AbortSignal
   assets: boolean
   raw: boolean
   drafts: boolean
@@ -257,6 +263,7 @@ export interface AssetMap {
  */
 export interface RequestStreamOptions {
   url: string
+  signal?: AbortSignal
   headers?: Record<string, string>
   maxRetries?: number
   retryDelayMs?: number

@@ -5,7 +5,7 @@ import {pipeline} from 'node:stream/promises'
 
 import PQueue from 'p-queue'
 
-import {delay} from './util/delay.js'
+import {setTimeout as delay} from 'node:timers/promises'
 import {through, throughObj} from './util/streamHelpers.js'
 import {
   ASSET_DOWNLOAD_CONCURRENCY,
@@ -49,6 +49,8 @@ interface AssetHandlerOptions {
   retryDelayMs?: number
   queue?: PQueue
   strictAssetVerification?: boolean
+  readTimeout?: number
+  onError?: (error: Error) => void
 }
 
 interface AssetRequestOptions {
@@ -85,6 +87,11 @@ export class AssetHandler {
   retryDelayMs: number | undefined
   queue: PQueue
   strictAssetVerification: boolean
+  readTimeout: number | undefined
+  onError: ((error: Error) => void) | undefined
+  abortController = new AbortController()
+  rewrittenAssets = new Map<string, string>()
+  requiredAssets = new Map<string, string>()
   rejectedError: Error | null
   reject: (err: Error) => void
 
@@ -105,6 +112,8 @@ export class AssetHandler {
     this.retryDelayMs = options.retryDelayMs
     this.queue = options.queue ?? new PQueue({concurrency})
     this.strictAssetVerification = options.strictAssetVerification ?? true
+    this.readTimeout = options.readTimeout
+    this.onError = options.onError
 
     this.rejectedError = null
     this.reject = (err: Error): void => {
@@ -113,9 +122,36 @@ export class AssetHandler {
   }
 
   clear(): void {
+    this.abortController.abort()
     this.assetsSeen.clear()
     this.queue.clear()
     this.queueSize = 0
+  }
+
+  fail(error: Error): void {
+    if (this.rejectedError) return
+    this.rejectedError = error
+    this.abortController.abort(error)
+    this.queue.clear()
+    this.reject(error)
+    this.onError?.(error)
+  }
+
+  addAsset(doc: AssetDocument): void {
+    if (this.assetsSeen.has(doc._id)) return
+    const type = doc._type === 'sanity.imageAsset' ? 'image' : 'file'
+    this.assetsSeen.set(doc._id, type)
+    this.queueAssetDownload(doc, `${type}s/${generateFilename(doc._id)}`)
+  }
+
+  trackDocumentAssets(item: unknown, documentId: string): void {
+    if (!item || typeof item !== 'object') return
+    const record = item as Record<string, unknown>
+    if (typeof record._sanityAsset === 'string') {
+      const id = this.rewrittenAssets.get(record._sanityAsset)
+      if (id && !this.requiredAssets.has(id)) this.requiredAssets.set(id, documentId)
+    }
+    for (const value of Object.values(record)) this.trackDocumentAssets(value, documentId)
   }
 
   finish(): Promise<AssetMap> {
@@ -135,11 +171,7 @@ export class AssetHandler {
   rewriteAssets = throughObj(
     (doc: SanityDocument | AssetDocument, _enc: BufferEncoding, callback) => {
       if (['sanity.imageAsset', 'sanity.fileAsset'].includes(doc._type)) {
-        const assetDoc = doc as AssetDocument
-        const type = doc._type === 'sanity.imageAsset' ? 'image' : 'file'
-        const filePath = `${type}s/${generateFilename(doc._id)}`
-        this.assetsSeen.set(doc._id, type)
-        this.queueAssetDownload(assetDoc, filePath)
+        this.addAsset(doc as AssetDocument)
         callback()
         return
       }
@@ -179,31 +211,29 @@ export class AssetHandler {
       return
     }
 
+    if (this.abortController.signal.aborted) return
+
     debug('Adding download task for %s (destination: %s)', assetDoc._id, dstPath)
     this.queueSize++
     this.downloading.push(assetDoc.url)
 
     const doDownload = async (): Promise<boolean> => {
       let dlError: DownloadError | undefined
-      for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+      for (let attempt = 0; attempt < Math.max(1, this.maxRetries); attempt++) {
         try {
+          this.abortController.signal.throwIfAborted()
           return await this.downloadAsset(assetDoc, dstPath)
         } catch (err) {
           const downloadError = err as DownloadError
-          // Ignore inaccessible assets
-          switch (downloadError.statusCode) {
-            case 401:
-            case 403:
-            case 404:
-              console.warn(
-                `⚠ Asset failed with HTTP %d (ignoring): %s`,
-                downloadError.statusCode,
-                assetDoc._id,
-              )
-              return true
-            default:
+          if (this.abortController.signal.aborted) throw err
+          if ([401, 403, 404].includes(downloadError.statusCode ?? 0)) {
+            console.warn(
+              `⚠ Asset failed with HTTP %d (ignoring): %s`,
+              downloadError.statusCode,
+              assetDoc._id,
+            )
+            return true
           }
-
           debug(
             `Error downloading asset %s (destination: %s), attempt %d`,
             assetDoc._id,
@@ -217,24 +247,31 @@ export class AssetHandler {
           if (
             downloadError.statusCode &&
             downloadError.statusCode >= 400 &&
-            downloadError.statusCode < 500
+            downloadError.statusCode < 500 &&
+            downloadError.statusCode !== 429
           ) {
             // Don't retry on client errors
             break
           }
 
-          await delay(this.retryDelayMs ?? DEFAULT_RETRY_DELAY)
+          if (attempt + 1 < Math.max(1, this.maxRetries)) {
+            await delay(this.retryDelayMs ?? DEFAULT_RETRY_DELAY, undefined, {
+              signal: this.abortController.signal,
+            })
+          }
         }
       }
-      throw new Error(dlError?.message ?? 'Unknown error downloading asset')
+      throw new Error(
+        `Could not download asset "${assetDoc._id}": ${dlError?.message ?? 'Unknown error'}. Check asset access and availability before retrying.`,
+        {cause: dlError},
+      )
     }
 
     this.queue
       .add(() =>
         doDownload().catch((err: unknown) => {
           debug('Failed to download the asset, aborting download', err)
-          this.queue.clear()
-          this.reject(err instanceof Error ? err : new Error(String(err)))
+          this.fail(err instanceof Error ? err : new Error(String(err)))
         }),
       )
       .catch((error: unknown) => {
@@ -287,8 +324,11 @@ export class AssetHandler {
       stream = await requestStream({
         maxRetries: 0, // We handle retries ourselves in queueAssetDownload
         ...options,
+        signal: this.abortController.signal,
+        ...(this.readTimeout !== undefined && {readTimeout: this.readTimeout}),
       })
     } catch (err) {
+      if (this.abortController.signal.aborted) throw err
       const message = 'Failed to create asset stream'
       if (err instanceof Error) {
         err.message = `${message}: ${err.message}`
@@ -307,6 +347,7 @@ export class AssetHandler {
           errMsg = `${errMsg}: ${err}`
         }
       } catch (err) {
+        if (this.abortController.signal.aborted) throw err
         const message = 'Failed to parse error response from asset stream'
         if (err instanceof Error) {
           err.message = `${message}: ${err.message}`
@@ -336,6 +377,7 @@ export class AssetHandler {
       md5 = res.md5
       size = res.size
     } catch (err) {
+      if (this.abortController.signal.aborted) throw err
       const message = 'Failed to write asset stream to filesystem'
 
       if (err instanceof Error) {
@@ -418,13 +460,14 @@ export class AssetHandler {
     }
 
     if (isAsset && action === ACTION_REWRITE) {
-      const {asset, ...other} = record
-      const assetId = asset._ref
       const assetType = getAssetType(record)
-      const filePath = `${assetType}s/${generateFilename(assetId)}`
+      const {asset, ...other} = record
+      const filePath = `${assetType}s/${generateFilename(asset._ref)}`
+      const pointer = `${assetType}@file://./${filePath}`
+      this.rewrittenAssets.set(pointer, asset._ref)
       const modified = this.findAndModify(other, action)
       return {
-        _sanityAsset: `${assetType}@file://./${filePath}`,
+        _sanityAsset: pointer,
         ...(typeof modified === 'object' && modified !== null ? modified : {}),
       } as RewrittenAssetField
     }
