@@ -33,7 +33,9 @@ exportDataset({
   // Default: `false`
   raw: true,
 
-  // Whether or not to export drafts
+  // Whether or not to export drafts and versions. This also controls the
+  // release (`_.releases.*`) and variant definition (`_.variants.*`) system
+  // documents those versions depend on.
   // Default: `true`
   drafts: true,
 

@@ -143,6 +143,52 @@ describe('export', () => {
     })
   })
 
+  test('includes variant definitions by default', async () => {
+    server = await getServer((_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.end(
+        JSON.stringify({
+          _id: '_.variants.french',
+          _type: 'system.variant',
+          name: 'french',
+          conditions: {locale: 'fr'},
+          priority: 0,
+        }),
+      )
+    })
+    const {port} = server
+    const options = await getOptions({port})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 1,
+      outputPath: /out\.tar\.gz$/,
+    })
+  })
+
+  test('skips variant definitions when drafts are excluded', async () => {
+    server = await getServer((_req, res) => {
+      res.writeHead(200, 'OK', {'Content-Type': 'application/x-ndjson'})
+      res.end(
+        JSON.stringify({
+          _id: '_.variants.french',
+          _type: 'system.variant',
+          name: 'french',
+          conditions: {locale: 'fr'},
+          priority: 0,
+        }),
+      )
+    })
+    const {port} = server
+    const options = await getOptions({port, drafts: false})
+    const result = await exportDataset(options)
+    expect(result).toMatchObject({
+      assetCount: 0,
+      documentCount: 0,
+      outputPath: /out\.tar\.gz$/,
+    })
+  })
+
   test('can skip provided types', async () => {
     const doc = {
       _id: 'this-is-my-jam',

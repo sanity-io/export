@@ -14,8 +14,12 @@ const isDraftOrVersion = (doc: SanityDocument): boolean =>
 const isSystemDocument = (doc: SanityDocument): boolean =>
   Boolean(doc._id && doc._id.indexOf('_.') === 0)
 
-const isReleaseDocument = (doc: SanityDocument): boolean =>
-  Boolean(doc._id && doc._id.indexOf('_.releases.') === 0)
+// Release and variant definitions are the system documents content refers to:
+// `versions.<release>.*` needs its `_.releases.*`, and a variant document's
+// `_system.variant` is a strong ref to its `_.variants.*`. Without them the
+// export cannot be imported, so they travel with the versions they belong to.
+const isPublicSystemDocument = (doc: SanityDocument): boolean =>
+  Boolean(doc._id && (doc._id.indexOf('_.releases.') === 0 || doc._id.indexOf('_.variants.') === 0))
 
 const isCursor = (doc: unknown): doc is CursorDocument =>
   typeof doc === 'object' &&
@@ -41,7 +45,7 @@ export function filterDocuments(drafts: boolean): Transform {
     }
 
     if (isSystemDocument(sanityDoc)) {
-      if (drafts && isReleaseDocument(sanityDoc)) {
+      if (drafts && isPublicSystemDocument(sanityDoc)) {
         callback(null, sanityDoc)
         return
       }
