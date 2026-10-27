@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [7.1.0](https://github.com/sanity-io/export/compare/v7.0.4...v7.1.0) (2026-10-27)
+
+### Features
+
+- treat variant definitions as public system documents ([aeb3ffb](https://github.com/sanity-io/export/commit/aeb3ffb92f1910acfc2d7e0766888dc23453fa2e))
+
 ## [7.0.4](https://github.com/sanity-io/export/compare/v7.0.3...v7.0.4) (2026-10-19)
 
 ### Bug Fixes
