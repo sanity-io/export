@@ -52,21 +52,21 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "get-it": "^9.5.4",
-    "modern-tar": "^0.8.5",
+    "get-it": "^9.6.2",
+    "modern-tar": "^0.8.6",
     "obug": "^3.0.0",
     "p-queue": "^9.0.1"
   },
   "devDependencies": {
-    "@sanity/client": "^8.6.1",
+    "@sanity/client": "^8.14.1",
     "@sanity/semantic-release-preset": "^6.0.0",
-    "@types/node": "^22.20.2",
-    "@vitest/coverage-v8": "^5.0.0",
-    "oxfmt": "^0.68.0",
-    "oxlint": "^1.83.0",
+    "@types/node": "^22.20.5",
+    "@vitest/coverage-v8": "^5.0.5",
+    "oxfmt": "^0.75.0",
+    "oxlint": "^1.90.0",
     "tar": "^7.5.22",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.5"
   },
   "engines": {
     "node": ">=22.12"
