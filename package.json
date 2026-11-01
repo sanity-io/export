@@ -60,7 +60,7 @@
   "devDependencies": {
     "@sanity/client": "^8.6.1",
     "@sanity/semantic-release-preset": "^6.0.0",
-    "@types/node": "^22.20.2",
+    "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.0.0",
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",
